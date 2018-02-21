@@ -31,10 +31,12 @@
 			until the next '-' else everything is still shovlled into the last arg
 *	[ ] Generate a report based of stats in the log files (this and the vnc)
 *		[ ] include stats from the vnc log file only if present
-*	[ ] improve the help to show the available options -> maybe in tools.rb?
+	[x] improve the help to show the available options -> maybe in tools.rb?
 *	[ ] add benchmarking and if it's too slow run speedtest and start recording inet speeds
 	[x] do a lookup of $ARGV and only continue if all $ARGV's are valid else just display help 
 	[ ] during backup tar all the older logs together
+	[ ] investigate https://github.com/diegopiccinini/pingdom to use for uptime if it will 
+	    work for this
 =end
 BEGIN{
   require 'logger'
@@ -292,11 +294,20 @@ BEGIN{
 			in_place_update		#plain, no backup
 		else
 			args = $opts[:update_to_prod].split(' ')
-			if args[0] == 'backup' && args[1].nil?
-				in_place_update(args[0])
-			else
-				in_place_update(args[0], args[1])
-			end
+			opt = {}
+			args.each{|arg|
+				s_arg = arg.split('=')
+				if s_arg[0].include?('backup')
+					opt[:backupfiles] = s_arg[1]
+				elsif s_arg[0].include?('cp') || s_arg[0].include?('copy')
+					opt[:cpfiles] = s_arg[1]
+				elsif s_arg[0].include?('show')
+					opt[:show] = s_arg[1]
+				elsif s_arg[0].include?('tar')
+					opt[:to_tar] = s_arg[1]
+				end
+			}
+			in_place_update(opt)
 		end
 	end
 } # End of Startup Biz
@@ -472,7 +483,7 @@ def findip
 			break
 	end
 	if result == "" || result == nil
-		raise "ERROR! Unable to get External IP from #{Sites[:ipinfo]}"
+		raise "ERROR! Unable to get External IP from #{Sites[:checkip].join}"
 	else
 		return result
 	end
