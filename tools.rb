@@ -306,7 +306,7 @@ NOTES:
 	stats[:records].each_with_index do |record, idx|			# START of Record Filters Logic ############################
 
 		if record.match(stats[:failed_attempts][:fail_regex]) && \
-				record.match(stats[:failed_attempts][:fail_regex])[1] > 0
+				record.match(stats[:failed_attempts][:fail_regex])[1].to_i > 0
 			stats[:failed_attempts][:total] += 1 
 		end
 
@@ -353,7 +353,10 @@ NOTES:
 	
 #	binding.pry
 	#display_results(stats, report_type)
-	File.open('./testoutfile.txt', 'w+') {|testie|
+	#outfile = $opts[:pwd].concat('/testoutfile.txt')
+	outfile = File.expand_path(File.dirname(__FILE__)).concat('/testoutfile.txt')
+	p outfile
+	File.open(outfile, 'w+') {|testie|
 		testie.write( stats.ai(plain: true) )
 		puts "Report file Generation is Complete."
 	}

@@ -150,7 +150,8 @@ BEGIN{
 		parse_ssh:			false,
     create_secrets:	false,
 		update_to_prod:	false,
-		help:						false
+		help:						false,
+		pwd:						'',
   }
 
 	if !(ARGV.empty?)
@@ -299,6 +300,8 @@ BEGIN{
 			end
 		end
 	end
+
+	$opts[:pwd] = File.expand_path(File.dirname(__FILE__))
 } # End of Startup Biz
 
 def goodbye(code=0)
