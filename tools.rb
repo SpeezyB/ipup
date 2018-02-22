@@ -245,9 +245,9 @@ NOTES:
 	[x] Need to remove the '@' at the front of ips
   [x] remove the '[' and ']' at the front and end of the date with regex
 	[x] Filter out any ips that are in the IPWhitelist var
+		[ ] scrap the last external ip from the log and add it too the $IPWhitelist var 
 	[ ] implament 'paint' gem ???
-	[ ] add the last successful runs returned ip to the IPWhitelist
-	[ ] Create differnet reports ['general', 'daily', 'only_errors', 'only_disconnects', 'export_to_CSV']
+	[ ] Create differnet reports ['# of days' 'general', 'daily', 'only_errors', 'only_disconnects', 'export_to_CSV']
 =end
 
 	stats 					= 	{
@@ -343,15 +343,18 @@ NOTES:
 	stats[:dates][:data]							.flatten!
 	stats[:dates][:data]							.compact!
 	stats[:dates][:data]							.uniq!
-	stats[:dates][:total]							= stats[:dates][:data].count
+	extract_date_reg									= /(\d{4}-\d{2}-\d{2})_\d{2}:\d{2}:\d{2}/
+	all_dates													= []
+	stats[:dates][:data]							.each{|x| x.match(extract_date_reg) ? all_dates.push(x.match(extract_date_reg)[1]) : nil}
+	stats[:dates][:total]							= all_dates.uniq.size
 
 	stats[:ips_logged][:data]					.compact!
 	stats[:ips_logged][:data]					.uniq!
 	stats[:ips_logged][:data]					.each{|ip| ip.start_with?('@') ? ip.gsub!(/[@]/, '') : nil }	# this removes the '@' in the ip
-	stats[:ips_logged][:data]					.delete_if{|i| IPWhitelist.include?(i)}
+	stats[:ips_logged][:data]					.delete_if{|i| $IPWhitelist.include?(i)}
 	stats[:ips_logged][:total]				= stats[:ips_logged][:data].nil? ? 0 : stats[:ips_logged][:data].uniq.count
 	
-#	binding.pry
+	binding.pry if $opts[:pry] == 'report_stats'
 	#display_results(stats, report_type)
 	#outfile = $opts[:pwd].concat('/testoutfile.txt')
 	outfile = File.expand_path(File.dirname(__FILE__)).concat('/testoutfile.txt')

@@ -120,8 +120,11 @@ BEGIN{
 
 		(start_ip..end_ip).map(&:to_s)
 	end
-	local_ips 		= create_ip_rng('192.168.0.2', '192.168.0.225')
-	IPWhitelist 	= (local_ips << %w(0.0.0.0 216.191.105.146)).flatten!
+
+	begin
+		local_ips 		= create_ip_rng('192.168.0.2', '192.168.0.225')
+		$IPWhitelist 	= (local_ips << %w(0.0.0.0 216.191.105.146)).flatten!
+	end
 	
 	Dir.chdir(Log_parts[:dir])
 
