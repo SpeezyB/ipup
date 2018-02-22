@@ -3,4 +3,5 @@
 *.bak
 *.bak.*
 *.swo
+*.swp
 secrets.yml

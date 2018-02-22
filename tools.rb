@@ -247,7 +247,7 @@ NOTES:
 	[x] Filter out any ips that are in the IPWhitelist var
 	[ ] implament 'paint' gem ???
 	[ ] add the last successful runs returned ip to the IPWhitelist
-	[ ] Create differnet reports ['gen', 'daily', 'only_errors', 'only_disconnects', 'export_to_CSV']
+	[ ] Create differnet reports ['general', 'daily', 'only_errors', 'only_disconnects', 'export_to_CSV']
 =end
 
 	stats 					= 	{
@@ -258,7 +258,7 @@ NOTES:
 			date_regex: 			/\[(\d{4}-\d{2}-\d{2})_/, 
 			datetime_regex: 	/\[(\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2})#/, 
 			data: 						[],	
-			total: 						0
+			total: 						0,
 		}, # dates:																										# done
 		runs:							{
 			run_regex: 				/(INFO|DEBUG|ERROR) /, 
@@ -266,24 +266,24 @@ NOTES:
 			pid_data:					[],
 			#pid_date_regex:		/\[(\d{4}-\d{2}-\d{2}_\d{2}:\d{2}.{3}#\d{3,6}) *\]/,		# Not needed??
 			pid_date_buckets:	[],
-			total:						0
+			total:						0,
 		}, # runs:																										# done
 		ips_logged: 			{
 			ip_regex: 				/\b@(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/, 		# The '@' filters out the return of the external ip
 			data:							[nil], 
-			total:						0
+			total:						0,
 		}, # ips_logged:																							# done
 		failed_attempts:	{
 			fail_regex:				/(\d+).failed ssh attempts/i,
-			total:						0
+			total:						0,
 		}, # failed_attempts:																					# done
 		disconnects:			{
 			discon_regex:			/\#<RuntimeError: Ping Check Failed\./i,
-			total:						0
+			total:						0,
 		}, # disconnects:
 		errors:						{
 			err_regex:				/ERROR/, 
-			total:						0
+			total:						0,
 		}	# errors:
 	}
 
