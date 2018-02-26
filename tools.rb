@@ -322,11 +322,12 @@ NOTES:
 		stats[:ips_logged][:data]					+= record.scan(stats[:ips_logged][:ip_regex])
 		stats[:runs][:pid_data]						.push(record.scan(stats[:runs][:pid_regex]))
 
-		tmp_strs 													= [stats[:dates][:data].flatten.last[0..-4], 
-													 							stats[:runs][:pid_data].last ].flatten
-		bucket_name 											= tmp_strs.join('#').to_sym
+		tmp_strs = [stats[:dates][:data].flatten.last[0..-4],stats[:runs][:pid_data].last ].flatten
 
-		if bucket.has_key?(bucket_name)
+		bucket_name 											= tmp_strs.join('#').to_sym
+		binding.pry if $opts[:pry] == 'dink'
+
+		if bucket.has_key?(bucket_name) 							# NEED TO FIX BUCKETS 
 			bucket[bucket_name].push(record) 						#add to bucket
 		else
 			bucket.update(bucket_name => [record])			#next bucket
@@ -334,6 +335,8 @@ NOTES:
 		
 	end 																									# END of Record Filters Logic  ############################
 	
+
+
 	stats[:runs][:pid_date_buckets]   = bucket
 	stats[:runs][:pid_data]						.flatten!
 	stats[:runs][:pid_data]						.compact!
@@ -357,7 +360,7 @@ NOTES:
 	binding.pry if $opts[:pry] == 'report_stats'
 	#display_results(stats, report_type)
 	#outfile = $opts[:pwd].concat('/testoutfile.txt')
-	outfile = File.expand_path(File.dirname(__FILE__)).concat('/testoutfile.txt')
+	outfile = File.expand_path(File.dirname(__FILE__)).concat('/testoutfile2.txt')
 	p outfile
 	File.open(outfile, 'w+') {|testie|
 		testie.write( stats.ai(plain: true) )

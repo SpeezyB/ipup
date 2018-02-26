@@ -62,23 +62,27 @@ BEGIN{
 	LogPad			= 25
 
 	Prog_parts	=	{
-		file:				$0.split('/').last,
-		dir:				$0.split('/')[0..-2].join('/') + '/'
+#		file:				$0.split('/').last,
+#		dir:				$0.split('/')[0..-2].join('/') + '/'
+		file:			File.basename(__FILE__),
+		dir:			File.dirname(File.expand_path(__FILE__)).concat('/'),
 	}
 	Progfile		=	Prog_parts[:dir] + Prog_parts[:file]
 	
 	v = Prog_parts[:file].start_with?('2') ? '2' : ''
 	Log_parts		= {
-		file:			v + 'updateip.log',
-		dir:			'/home/pi/.ipupdate/'
+#		file:			v + 'updateip.log',
+		file:			File.basename(Prog_parts[:file], '.rb').concat('.log'),
+		dir:			Prog_parts[:dir].end_with?('/') ? Prog_parts[:dir] : Prog_parts[:dir].concat('/')
+#		dir:			'/home/pi/.ipupdate/'
 	}
 
-	if !(File.exist?(Log_parts[:dir] + Log_parts[:file]))
-		Log_parts[:file] = Prog_parts[:file].split('.')[0] + '.log'
-		Log_parts[:dir]	 = Prog_parts[:dir]
-	end
+#	if !(File.exist?(Log_parts[:dir] + Log_parts[:file]))
+#		Log_parts[:file] = Prog_parts[:file].split('.')[0] + '.log'
+#		Log_parts[:dir]	 = Prog_parts[:dir]
+#	end
 	Logfile			= Log_parts[:dir] + Log_parts[:file]
-	
+
 	Depends_on	= {
 		secrets:		'secrets.yml',
 		grep: 			'grep',
@@ -160,7 +164,7 @@ BEGIN{
 	if !(ARGV.empty?)
 		keys = []
 		ARGV.each_with_index do |arg, idx|
-			if arg.start_with?('-')
+			if arg.lstrip.start_with?('-')
 				keys << key = arg.chars.drop(1).join.to_sym
 				if $opts.has_key?(key)
 					$opts[key] 	= !$opts[key]  # create the key and flip the bool
@@ -308,6 +312,7 @@ BEGIN{
 } # End of Startup Biz
 
 def goodbye(code=0)
+	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EOR}"}
 	$Log.close
 
 	exit!(code) if $opts[:log] == 'cleandebug' # Just exit as there will be nothing to parse for errors
@@ -336,10 +341,10 @@ def goodbye(code=0)
 															''
 														end	}
 			end
-			remaining_args << '-log debug'
+			remaining_args << ' -log debug'
 			exec_str = "#{Progfile} -retry_count #{count} #{remaining_args}"
 	#		ap exec_str
-			$opts[:log]!='reset' ? IO.readlines(Logfile)[-2..-1].each{|l| l.include?('ERROR') ? exec(exec_str) : nil} : nil
+			$opts[:log]!='reset' ? IO.readlines(Logfile)[-3..-1].each{|l| l.include?('ERROR') ? exec(exec_str) : nil} : nil
 		else
 			puts "Too Many retries! Breaking Loop!!"
 			exit!(7)
