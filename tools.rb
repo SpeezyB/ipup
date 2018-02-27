@@ -336,7 +336,7 @@ NOTES:
 	stats[:records].each_with_index do |record, idx|			# START of Record Filters Logic ############################
 
 		if record.match(stats[:failed_attempts][:fail_regex]) && \
-				record.match(stats[:failed_attempts][:fail_regex])[1] > 0
+				record.match(stats[:failed_attempts][:fail_regex])[1].to_i > 0
 			stats[:failed_attempts][:total] += 1 
 		end
 
@@ -369,21 +369,23 @@ NOTES:
 	stats[:runs][:pid_data]						.compact!
 	stats[:runs][:pid_data]						.uniq!
 	stats[:runs][:total]							= stats[:runs][:pid_date_buckets].count
+	stats[:runs][:pid_data]						.clear if $opts[:test] == 'clear'
 
 	stats[:dates][:data]							.flatten!
 	stats[:dates][:data]							.compact!
 	stats[:dates][:data]							.uniq!
 	stats[:dates][:total]							= stats[:dates][:data].count
+	stats[:dates][:data]							.clear if $opts[:test] == 'clear'
 
 	stats[:ips_logged][:data]					.compact!
 	stats[:ips_logged][:data]					.uniq!
 	stats[:ips_logged][:data]					.each{|ip| ip.start_with?('@') ? ip.gsub!(/[@]/, '') : nil }	# this removes the '@' in the ip
-	stats[:ips_logged][:data]					.delete_if{|i| IPWhitelist.include?(i)}
+	stats[:ips_logged][:data]					.delete_if{|i| $IPWhitelist.include?(i)}
 	stats[:ips_logged][:total]				= stats[:ips_logged][:data].nil? ? 0 : stats[:ips_logged][:data].uniq.count
 	
 #	binding.pry
 	#display_results(stats, report_type)
-	File.open('./testoutfile.txt', 'w+') {|testie|
+	File.open('./testoutfile3.txt', 'w+') {|testie|
 		testie.write( stats.ai(plain: true) )
 		puts "Report file Generation is Complete."
 	}

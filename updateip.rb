@@ -144,7 +144,7 @@ BEGIN{
 		inet_false:			false,
 		speedtest:			false,
 		with_speed:			false,
-#   test:						false,		# Not Used ??
+    test:						false,		# Not Used ??
 		log:						false,
 		timeck:					5,				# how many minutes back to check for ssh fails
 		timewindow:			30, 			# 1 month in days to grab a pool of data for ssh fails
