@@ -55,6 +55,7 @@ BEGIN{
 	end
 	
 	EOR					= "\u00B6"
+	EndOfRun 		= "\u00B7"
 	Bools				= %w(true false)
 #	Ip_Regex		= Resolv::AddressRegex 		# /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
 	Ip_Regex		= /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
@@ -312,7 +313,6 @@ BEGIN{
 } # End of Startup Biz
 
 def goodbye(code=0)
-	EndOfRun = "\u00b7"
 	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"}
 	$Log.close
 
@@ -345,7 +345,7 @@ def goodbye(code=0)
 			remaining_args << ' -log debug'
 			exec_str = "#{Progfile} -retry_count #{count} #{remaining_args}"
 	#		ap exec_str
-			$opts[:log]!='reset' ? IO.readlines(Logfile)[-3..-1].each{|l| l.include?('ERROR') ? exec(exec_str) : nil} : nil
+			$opts[:log]!='reset' ? IO.readlines(Logfile)[-2..-1].each{|l| l.include?('ERROR') ? exec(exec_str) : nil} : nil
 		else
 			puts "Too Many retries! Breaking Loop!!"
 			exit!(7)
@@ -564,7 +564,11 @@ begin # Begin Main Program main
 		end
 		content = 'Total Users Logged in: ' + get_users + parse_ssh_logs
 		$Log.debug('[main-parse_ssh&exit]'.ljust(LogPad)) {"Contents == #{content.ai(plain: true).to_s}#{EOR}"}
-		$Log.info('[main-parse_ssh&exit]'.ljust(LogPad)) {"Contents == #{content}#{EOR}"}
+		if $opts[:log] == false
+			$Log.info('[main-parse_ssh&exit]'.ljust(LogPad)) {"Contents == #{content}#{EndOfRun}#{EOR}"}
+		else
+			$Log.info('[main-parse_ssh&exit]'.ljust(LogPad)) {"Contents == #{content}#{EOR}"}
+		end
 		puts content
 		goodbye(0)
 	when  $opts[:parse_ssh] != false		then ap parse_ssh_logs($opts[:parse_ssh])
@@ -624,7 +628,11 @@ begin # Begin Main Program main
 
 	$Log.debug('[main]'.ljust(LogPad)) {"Curl DATA : #{curl.inspect}#{EOR}"}
 	$Log.debug('[main]'.ljust(LogPad)) {"Curl lines DATA : #{curl.lines.ai(:plain => true).to_s}#{EOR}"}
-	$Log.info( '[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EOR}"}
+	if $opts[:log] == false
+		$Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EndOfRun}#{EOR}"}
+	else
+		$Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EOR}"}
+	end
  
   result = %Q(
 Current IP: #{$ip[:v4]}
