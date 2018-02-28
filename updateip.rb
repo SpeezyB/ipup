@@ -312,7 +312,8 @@ BEGIN{
 } # End of Startup Biz
 
 def goodbye(code=0)
-	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EOR}"}
+	EndOfRun = "\u00b7"
+	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"}
 	$Log.close
 
 	exit!(code) if $opts[:log] == 'cleandebug' # Just exit as there will be nothing to parse for errors
@@ -641,6 +642,7 @@ rescue => err
 	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR! #{err.inspect}#{EOR}"}
 	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR!#{EOR}"}
 	STDERR.puts "Error! -> #{err.message}\n#{err.inspect}\n#{err.backtrace}\n\n"
+	goodbye
 end
 
 Kernel.at_exit {

@@ -277,7 +277,7 @@ NOTES:
 	[x] Filter out any ips that are in the IPWhitelist var
 	[ ] implament 'paint' gem ???
 	[ ] add the last successful runs returned ip to the IPWhitelist
-	[ ] Create differnet reports ['gen', 'daily', 'only_errors', 'only_disconnects', 'export_to_CSV']
+	[ ] Create differnet reports ['general', 'daily', 'only_errors', 'only_disconnects', 'export_to_CSV']
 =end
 
 	stats 					= 	{
@@ -286,7 +286,7 @@ NOTES:
 		records:						[],																					# done
 		dates:						{
 			date_regex: 			/\[(\d{4}-\d{2}-\d{2})_/, 
-			datetime_regex: 	/\[(\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2})#/, 
+			datetime_regex: 	/\[(\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2})#/, # YYYY-MM-DD_HH:MM:SS
 			data: 						[],	
 			total: 						0
 		}, # dates:																										# done
@@ -349,6 +349,7 @@ NOTES:
 		end
 
 		stats[:dates][:data]							+= record.scan(stats[:dates][:datetime_regex])
+		binding.pry if $opts[:pry] == 'rec'
 		stats[:ips_logged][:data]					+= record.scan(stats[:ips_logged][:ip_regex])
 		stats[:runs][:pid_data]						.push(record.scan(stats[:runs][:pid_regex]))
 
