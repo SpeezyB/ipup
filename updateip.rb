@@ -55,6 +55,7 @@ BEGIN{
 	end
 	
 	EOR					= "\u00B6"
+	EndOfRun 		= "\u00B7"
 	Bools				= %w(true false)
 #	Ip_Regex		= Resolv::AddressRegex 		# /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
 	Ip_Regex		= /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
@@ -62,23 +63,27 @@ BEGIN{
 	LogPad			= 25
 
 	Prog_parts	=	{
-		file:				$0.split('/').last,
-		dir:				$0.split('/')[0..-2].join('/') + '/'
+#		file:				$0.split('/').last,
+#		dir:				$0.split('/')[0..-2].join('/') + '/'
+		file:			File.basename(__FILE__),
+		dir:			File.dirname(File.expand_path(__FILE__)).concat('/'),
 	}
 	Progfile		=	Prog_parts[:dir] + Prog_parts[:file]
 	
 	v = Prog_parts[:file].start_with?('2') ? '2' : ''
 	Log_parts		= {
-		file:			v + 'updateip.log',
-		dir:			'/home/pi/.ipupdate/'
+#		file:			v + 'updateip.log',
+		file:			File.basename(Prog_parts[:file], '.rb').concat('.log'),
+		dir:			Prog_parts[:dir].end_with?('/') ? Prog_parts[:dir] : Prog_parts[:dir].concat('/')
+#		dir:			'/home/pi/.ipupdate/'
 	}
 
-	if !(File.exist?(Log_parts[:dir] + Log_parts[:file]))
-		Log_parts[:file] = Prog_parts[:file].split('.')[0] + '.log'
-		Log_parts[:dir]	 = Prog_parts[:dir]
-	end
+#	if !(File.exist?(Log_parts[:dir] + Log_parts[:file]))
+#		Log_parts[:file] = Prog_parts[:file].split('.')[0] + '.log'
+#		Log_parts[:dir]	 = Prog_parts[:dir]
+#	end
 	Logfile			= Log_parts[:dir] + Log_parts[:file]
-	
+
 	Depends_on	= {
 		secrets:		'secrets.yml',
 		grep: 			'grep',
@@ -120,8 +125,11 @@ BEGIN{
 
 		(start_ip..end_ip).map(&:to_s)
 	end
-	local_ips 		= create_ip_rng('192.168.0.2', '192.168.0.225')
-	IPWhitelist 	= (local_ips << %w(0.0.0.0 216.191.105.146)).flatten!
+
+	begin
+		local_ips 		= create_ip_rng('192.168.0.2', '192.168.0.225')
+		$IPWhitelist 	= (local_ips << %w(0.0.0.0 216.191.105.146)).flatten!
+	end
 	
 	Dir.chdir(Log_parts[:dir])
 
@@ -137,7 +145,7 @@ BEGIN{
 		inet_false:			false,
 		speedtest:			false,
 		with_speed:			false,
-#   test:						false,		# Not Used ??
+    test:						false,		# Not Used ??
 		log:						false,
 		timeck:					5,				# how many minutes back to check for ssh fails
 		timewindow:			30, 			# 1 month in days to grab a pool of data for ssh fails
@@ -150,13 +158,14 @@ BEGIN{
 		parse_ssh:			false,
     create_secrets:	false,
 		update_to_prod:	false,
-		help:						false
+		help:						false,
+		pwd:						'',
   }
 
 	if !(ARGV.empty?)
 		keys = []
 		ARGV.each_with_index do |arg, idx|
-			if arg.start_with?('-')
+			if arg.lstrip.start_with?('-')
 				keys << key = arg.chars.drop(1).join.to_sym
 				if $opts.has_key?(key)
 					$opts[key] 	= !$opts[key]  # create the key and flip the bool
@@ -299,9 +308,12 @@ BEGIN{
 			end
 		end
 	end
+
+	$opts[:pwd] = File.expand_path(File.dirname(__FILE__))
 } # End of Startup Biz
 
 def goodbye(code=0)
+	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"}
 	$Log.close
 
 	exit!(code) if $opts[:log] == 'cleandebug' # Just exit as there will be nothing to parse for errors
@@ -330,7 +342,7 @@ def goodbye(code=0)
 															''
 														end	}
 			end
-			remaining_args << '-log debug'
+			remaining_args << ' -log debug'
 			exec_str = "#{Progfile} -retry_count #{count} #{remaining_args}"
 	#		ap exec_str
 			$opts[:log]!='reset' ? IO.readlines(Logfile)[-2..-1].each{|l| l.include?('ERROR') ? exec(exec_str) : nil} : nil
@@ -552,7 +564,11 @@ begin # Begin Main Program main
 		end
 		content = 'Total Users Logged in: ' + get_users + parse_ssh_logs
 		$Log.debug('[main-parse_ssh&exit]'.ljust(LogPad)) {"Contents == #{content.ai(plain: true).to_s}#{EOR}"}
-		$Log.info('[main-parse_ssh&exit]'.ljust(LogPad)) {"Contents == #{content}#{EOR}"}
+		if $opts[:log] == false
+			$Log.info('[main-parse_ssh&exit]'.ljust(LogPad)) {"Contents == #{content}#{EndOfRun}#{EOR}"}
+		else
+			$Log.info('[main-parse_ssh&exit]'.ljust(LogPad)) {"Contents == #{content}#{EOR}"}
+		end
 		puts content
 		goodbye(0)
 	when  $opts[:parse_ssh] != false		then ap parse_ssh_logs($opts[:parse_ssh])
@@ -612,7 +628,11 @@ begin # Begin Main Program main
 
 	$Log.debug('[main]'.ljust(LogPad)) {"Curl DATA : #{curl.inspect}#{EOR}"}
 	$Log.debug('[main]'.ljust(LogPad)) {"Curl lines DATA : #{curl.lines.ai(:plain => true).to_s}#{EOR}"}
-	$Log.info( '[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EOR}"}
+	if $opts[:log] == false
+		$Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EndOfRun}#{EOR}"}
+	else
+		$Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EOR}"}
+	end
  
   result = %Q(
 Current IP: #{$ip[:v4]}
@@ -630,6 +650,7 @@ rescue => err
 	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR! #{err.inspect}#{EOR}"}
 	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR!#{EOR}"}
 	STDERR.puts "Error! -> #{err.message}\n#{err.inspect}\n#{err.backtrace}\n\n"
+	goodbye
 end
 
 Kernel.at_exit {

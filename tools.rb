@@ -15,7 +15,7 @@ def display_help(opt)
 	%Q(
 #{' '.ljust(m0)}#{'Argument'.ljust(pad)}|#{'Default'.center(11)}|   #{'[Options] & data'.ljust(pad)}
 #{' '.ljust(m0)}#{'-' * ((pad * 2) + 13)}
-#{' '.ljust(m0)}#{'-showall'				.ljust(pad)}|#{'false'.center(m1)}|#{' '.ljust(m2)}[nil] 
+#{' '.ljust(m0)}#{'-showall'				.ljust(pad)}|#{'false'.center(m1)}|#{' '.ljust(m2)}[nil]            Displays additional messages in console
 #{' '.ljust(m0)}#{'-showopts'				.ljust(pad)}|#{'false'.center(m1)}|#{' '.ljust(m2)}[nil]            Displays all options and current values
 #{' '.ljust(m0)}#{'-skip'						.ljust(pad)}|#{'false'.center(m1)}|#{' '.ljust(m2)}[checkinet|curl] Skips the listed section
 #{' '.ljust(m0)}#{'-inet_false'			.ljust(pad)}|#{'false'.center(m1)}|#{' '.ljust(m2)}[nil]            Triggers an event to simulate no internet connection
@@ -43,7 +43,7 @@ def display_help(opt)
 #{' '.ljust(m0)}#{'-parse_ssh'			.ljust(pad)}|#{'false'.center(m1)}|#{' '.ljust(m2)}[nil]            Skips update commands and jumps to parsing ssh
 #{' '.ljust(m4)																																				}[exit]           Skips update commands and jumps to parsing ssh and hard exit
 #{' '.ljust(m0)}#{'-create_secrets'	.ljust(pad)}|#{'false'.center(m1)}|#{' '.ljust(m2)}[nil]
-#{' '.ljust(m0)}#{'-update_to_prod'	.ljust(pad)}|#{'false'.center(m1)}|#{' '.ljust(m2)}['files to backup' 'files to copy']
+#{' '.ljust(m0)}#{'-update_to_prod'	.ljust(pad)}|#{'false'.center(m1)}|#{' '.ljust(m2)}[backup=[Str] copy=[Str] tar=[bool] show=[bool] name=""]
 #{' '.ljust(m4)																																				}  [tools|lib|libs]    backup just the tools.rb library
 #{' '.ljust(m4)																																				}  [update|core]       backup just the core update ip
 #{' '.ljust(m4)																																				}  [all|backup]        backup both the core and tools library
@@ -54,6 +54,8 @@ def display_help(opt)
 #{' '.ljust(m4)																																				}  [all|all files]     copy both the core and tools library
 #{' '.ljust(m4)																																				}  [none]              don't copy either file
 #{' '.ljust(m0)}#{'-help'						.ljust(pad)}|#{'false'.center(m1)}|#{' '.ljust(m2)}[nil]            This is what you're reading
+
+
 )
 end
 
@@ -125,56 +127,84 @@ def get_fname_bak(rfname)
 	result
 end
 
-def in_place_update(backupfiles='none', cpfiles='all', show=false)
+def in_place_update(opt={
+				backupfiles: 	'none', 
+				cpfiles: 			'all', 
+				show: 				false, 
+				to_tar: 			true, 
+				name: 				'archive_logs_baks.tar',
+})
+	#require 'minitar'
+	#require 'zlib'
 	# copy the 2update.rb and 2tools.rb to update.rb & tools.rb
 	puts "Upgrading Staging to Production ... "
-	dir = File.absolute_path($0).split('/')[0..-2].join('/') + '/'
+	dir = File.absolute_path(__FILE__).split('/')[0..-2].join('/') + '/'
 	Dir.chdir(dir)
-	puts "cpfiles=#{cpfiles} // backupfiles=#{backupfiles}" if show
-	p Dir.pwd if show
-
-	case backupfiles
+	tar_file_name = opt[:name] || 'archive_logs_baks.tar'
+	puts "cpfiles=#{opt[:cpfiles]} // backupfiles=#{opt[:backupfiles]}" if opt[:show]
+	pwd = Dir.pwd
+	ap opt if opt[:show]
+	
+	binding.pry if $opts[:pry] == 'update'
+	case opt[:backupfiles]
 	when 'tools', 'lib', 'libs' # tools.rb.bak<increment number>
 		rootfname 	= "#{dir}tools.rb"
 		fname 			= get_fname_bak(rootfname) 
 		bkexec_str 	= "cp -f #{rootfname} #{fname}"
-		p bkexec_str if show
+		p bkexec_str 	if opt[:show]
 		puts system(bkexec_str) ? "Backup of 'tools.rb' Complete!" : "Error backup interupted!"
 	when 'update', 'core' # updateip.rb.bak<increment number>
 		rootfname 	= "#{dir}updateip.rb"
 		fname 			= get_fname_bak(rootfname) 
 		bkexec_str 	= "cp -f #{rootfname} #{fname}"
-		p bkexec_str if show
+		p bkexec_str 	if opt[:show]
 		puts system(bkexec_str) ? "Backup of 'updateip.rb' Complete!" : "Error backup interupted!"
 	when 'all', 'backup'
 		rootfnames 	= ["#{dir}updateip.rb", "#{dir}tools.rb"]
-		p rootfnames if show
 		fnames			= [get_fname_bak(rootfnames[0]), get_fname_bak(rootfnames[1])]
-		p fnames if show
+		p fnames 			if opt[:show]
 		bkexec_str	=	"cp -f #{rootfnames[0]} #{fnames[0]};cp -f #{rootfnames[1]} #{fnames[1]}"
-		p bkexec_str if show
+		p bkexec_str 	if opt[:show]
 		puts system(bkexec_str) ? "Backup of 'updateip.rb' & 'tools.rb' Complete!" : "Error backup interupted!"
 	else # 'none'
-		nil
+		bkexec_str 	= " "
 	end # backupfiles
 
+	if opt[:to_tar]
+		to_exclude 	= Dir[tar_file_name, "*.swp", "*updateip.rb", "*updateip.log",
+										"*tools.rb", "secrets.yml", File.basename(__FILE__)].uniq.map{|x| './'.concat(x)}.join(' ')
+		tar_files		= Dir["./*"].delete_if{|x| to_exclude.include?(x)}.uniq.map!{|x| x[2..-1]}.join(' ')
+		tar_str     = if File.exist?(tar_file_name)
+										"tar -uf #{tar_file_name} #{tar_files} --remove-files" # --exclude #{to_exclude}
+									else
+										"tar -cf #{tar_file_name} #{tar_files} --remove-files" # --exclude #{to_exclude}
+									end
+
+		p tar_str if opt[:show]
+		p tar_files if opt[:show]
+		#tarfile = File.open(tar_file_name, 'wb')
+		#Minitar.pack(tar_files, tarfile) ? "Tar file #{tar_file_name} has been created" : "Error creating tar file!"
+		puts system(tar_str) ? "Tar file #{tar_file_name} has been completed" : "Error creating tar file!"
+	end
+
 	puts "Starting Upgrading from Staging to Production..."
-	case cpfiles
+	case opt[:cpfiles]
 	when 'tools', 'lib', 'libs'
 		cpexec_str 	= "cp -f #{dir}2tools.rb #{dir}tools.rb"
-		p cpexec_str if show
+		p cpexec_str if opt[:show]
+		puts system(cpexec_str) ? "Upgrade from staging to Production Complete!" : "Error Upgrading NOT Completed!"
 	when 'update', 'core'
 		cpexec_str 	= "cp -f #{dir}2updateip.rb #{dir}updateip.rb"
-		p cpexec_str if show
+		p cpexec_str if opt[:show]
+		puts system(cpexec_str) ? "Upgrade from staging to Production Complete!" : "Error Upgrading NOT Completed!"
 	when 'all', 'all files'
 		cpexec_str 	= "cp -f #{dir}2updateip.rb #{dir}updateip.rb;cp -f #{dir}2tools.rb #{dir}tools.rb"
-		p cpexec_str if show
+		p cpexec_str if opt[:show]
+		puts system(cpexec_str) ? "Upgrade from staging to Production Complete!" : "Error Upgrading NOT Completed!"
 	else # 'none'
-		nil
+		cpexec_str = " "
 	end # cpfiles
 
-	p cpexec_str if show
-	puts system(cpexec_str) ? "Upgrade from staging to Production Complete!" : "Error Upgrading NOT Completed!"
 	exit
 end
 
@@ -247,7 +277,7 @@ NOTES:
 	[x] Filter out any ips that are in the IPWhitelist var
 	[ ] implament 'paint' gem ???
 	[ ] add the last successful runs returned ip to the IPWhitelist
-	[ ] Create differnet reports ['gen', 'daily', 'only_errors', 'only_disconnects', 'export_to_CSV']
+	[ ] Create differnet reports ['general', 'daily', 'only_errors', 'only_disconnects', 'export_to_CSV']
 =end
 
 	stats 					= 	{
@@ -256,7 +286,7 @@ NOTES:
 		records:						[],																					# done
 		dates:						{
 			date_regex: 			/\[(\d{4}-\d{2}-\d{2})_/, 
-			datetime_regex: 	/\[(\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2})#/, 
+			datetime_regex: 	/\[(\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2})#/, # YYYY-MM-DD_HH:MM:SS
 			data: 						[],	
 			total: 						0
 		}, # dates:																										# done
@@ -306,7 +336,7 @@ NOTES:
 	stats[:records].each_with_index do |record, idx|			# START of Record Filters Logic ############################
 
 		if record.match(stats[:failed_attempts][:fail_regex]) && \
-				record.match(stats[:failed_attempts][:fail_regex])[1] > 0
+				record.match(stats[:failed_attempts][:fail_regex])[1].to_i > 0
 			stats[:failed_attempts][:total] += 1 
 		end
 
@@ -319,6 +349,7 @@ NOTES:
 		end
 
 		stats[:dates][:data]							+= record.scan(stats[:dates][:datetime_regex])
+		binding.pry if $opts[:pry] == 'rec'
 		stats[:ips_logged][:data]					+= record.scan(stats[:ips_logged][:ip_regex])
 		stats[:runs][:pid_data]						.push(record.scan(stats[:runs][:pid_regex]))
 
@@ -339,21 +370,23 @@ NOTES:
 	stats[:runs][:pid_data]						.compact!
 	stats[:runs][:pid_data]						.uniq!
 	stats[:runs][:total]							= stats[:runs][:pid_date_buckets].count
+	stats[:runs][:pid_data]						.clear if $opts[:test] == 'clear'
 
 	stats[:dates][:data]							.flatten!
 	stats[:dates][:data]							.compact!
 	stats[:dates][:data]							.uniq!
 	stats[:dates][:total]							= stats[:dates][:data].count
+	stats[:dates][:data]							.clear if $opts[:test] == 'clear'
 
 	stats[:ips_logged][:data]					.compact!
 	stats[:ips_logged][:data]					.uniq!
 	stats[:ips_logged][:data]					.each{|ip| ip.start_with?('@') ? ip.gsub!(/[@]/, '') : nil }	# this removes the '@' in the ip
-	stats[:ips_logged][:data]					.delete_if{|i| IPWhitelist.include?(i)}
+	stats[:ips_logged][:data]					.delete_if{|i| $IPWhitelist.include?(i)}
 	stats[:ips_logged][:total]				= stats[:ips_logged][:data].nil? ? 0 : stats[:ips_logged][:data].uniq.count
 	
 #	binding.pry
 	#display_results(stats, report_type)
-	File.open('./testoutfile.txt', 'w+') {|testie|
+	File.open('./testoutfile4.txt', 'w+') {|testie|
 		testie.write( stats.ai(plain: true) )
 		puts "Report file Generation is Complete."
 	}
