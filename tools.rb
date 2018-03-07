@@ -386,7 +386,7 @@ NOTES:
 	
 #	binding.pry
 	#display_results(stats, report_type)
-	File.open('./testoutfile4.txt', 'w+') {|testie|
+	File.open('./testoutfile5.txt', 'w+') {|testie|
 		testie.write( stats.ai(plain: true) )
 		puts "Report file Generation is Complete."
 	}

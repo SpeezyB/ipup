@@ -159,6 +159,7 @@ BEGIN{
     create_secrets:	false,
 		update_to_prod:	false,
 		help:						false,
+		goodbye:				false,
 		pwd:						'',
   }
 
@@ -313,7 +314,7 @@ BEGIN{
 } # End of Startup Biz
 
 def goodbye(code=0)
-	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"}
+	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"} if $opts[:goodbye] == true.to_s
 	$Log.close
 
 	exit!(code) if $opts[:log] == 'cleandebug' # Just exit as there will be nothing to parse for errors
