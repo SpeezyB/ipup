@@ -241,7 +241,7 @@ end
 
 def display_results(stats, type)
 	result_string = %Q(
-put the stuffs here to put on the screen.
+put the stuffs here to put on the screen. And make it pretty.
 	)
 end
 
@@ -251,15 +251,7 @@ Totals For Current Log File: #{stats[:logfile]}
 		# of runs 		| # of unique 		| # of failed attempts		| # of Disconnects		| # of Errors reported
 		  						|	ips logged in		|													|											|
 		--------------|-----------------|-------------------------|---------------------|---------------------
-		stats = {
-			logfile_name:			'',
-			date:							[/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/ 	,0], #YYYY-MM-DD 24:60:60
-			runs:							[/(INFO|DEBUG|ERROR) /,									,0], # create a regex that looks for (DEBUG | INFO | ERROR) capture that and count lines
-			ips_logged: 			['Ip Addresses:'												,0],
-			failed_attempts:	['failed ssh attempts'									,0],
-			disconnects:			['Ping Check Failed.'										,0],
-			errors:						['ERROR'																,0]
-		}
+		
 =end
 def generate_report(read_log_file, sep="\u00B6", report_type='gen')
 #	raise !File.exist?(read_log_file) ? "Unable to generate report from #{read_log_file}" : nil # <<<<<<<<< This needs work ?!?!?!?!?
@@ -344,10 +336,6 @@ NOTES:
 			stats[:disconnects][:total] 		+= 1
 		end
 
-		if record.match(stats[:errors][:err_regex])
-			stats[:errors][:total] 					+= 1
-		end
-
 		stats[:dates][:data]							+= record.scan(stats[:dates][:datetime_regex])
 		binding.pry if $opts[:pry] == 'rec'
 		stats[:ips_logged][:data]					+= record.scan(stats[:ips_logged][:ip_regex])
@@ -371,6 +359,14 @@ NOTES:
 	stats[:runs][:pid_data]						.uniq!
 	stats[:runs][:total]							= stats[:runs][:pid_date_buckets].count
 	stats[:runs][:pid_data]						.clear if $opts[:test] == 'clear'
+
+	error_count						 						= 0
+	stats[:runs][:pid_date_buckets].each{|bucket|
+		bucket.each{|datum|
+			datum.match(stats[:errors][:err_regex]) ? error_count += 1 : next
+		}
+	}
+	stats[:errors][:total]							= error_count
 
 	stats[:dates][:data]							.flatten!
 	stats[:dates][:data]							.compact!
