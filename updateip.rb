@@ -8,7 +8,7 @@
 		[x] Place in a secrets.yml file for redistrubution
 	[x]	Take out the dependancy for 'tail' and use Ruby's file commands
 	[x] use speedtest to log the current speed of connection if wanted
-	[~] created a 'whitelist' of ips that won't trigger a response
+	[x] created a 'whitelist' of ips that won't trigger a response
 	[x] add user logging as well
 		 	[x] use a hash of arrays for the 2D data structure
 				the hash is going to be the column names 
@@ -23,7 +23,7 @@
 		[x]	Add logging for SSH functions
 * 	[ ]	add vnc.log to check as well
 * [ ]	saving more info in yaml file (encrypt?)
-*	[x] Either add a 'skip' to getting and setting the ip so to just parse
+	[x] Either add a 'skip' to getting and setting the ip so to just parse
 			or find a way to run '-parse_ssh' and still run the END{} code <- this!
 	[x] run a check for required files before starting.
 *		[~] abstract relavent methods to another file / module
@@ -31,10 +31,10 @@
 			until the next '-' else everything is still shovlled into the last arg
 *	[ ] Generate a report based of stats in the log files (this and the vnc)
 *		[ ] include stats from the vnc log file only if present
-*	[ ] improve the help to show the available options -> maybe in tools.rb?
+	[x] improve the help to show the available options -> maybe in tools.rb?
 *	[ ] add benchmarking and if it's too slow run speedtest and start recording inet speeds
 	[x] do a lookup of $ARGV and only continue if all $ARGV's are valid else just display help 
-	[ ] during backup tar all the older logs together
+	[x] during backup tar all the older logs together
 =end
 BEGIN{
   require 'logger'
@@ -159,6 +159,7 @@ BEGIN{
     create_secrets:	false,
 		update_to_prod:	false,
 		help:						false,
+		goodbye:				false,
 		pwd:						'',
   }
 
@@ -313,7 +314,7 @@ BEGIN{
 } # End of Startup Biz
 
 def goodbye(code=0)
-	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"}
+	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"} if bool?($opts[:goodbye])
 	$Log.close
 
 	exit!(code) if $opts[:log] == 'cleandebug' # Just exit as there will be nothing to parse for errors
@@ -554,6 +555,8 @@ begin # Begin Main Program main
   ap $opts if $opts[:showopts]
 
 	$Log.debug('[main]'.ljust(LogPad)) {"Ruby Ver. #{%x(ruby -v).chomp}#{EOR}"}
+  $Log.debug('[main]'.ljust(LogPad)) {"Options = #{$opts.ai(plain: true).to_s}#{EOR}"}
+
 	case
 	when  $opts[:parse_ssh] == true 		then ap parse_ssh_logs
 	when  $opts[:parse_ssh] == 'exit'
@@ -594,8 +597,6 @@ begin # Begin Main Program main
 		puts "#{speed}"
 		goodbye(0)
 	end
-
-  $Log.debug('[main]'.ljust(LogPad)) {"Options = #{$opts.ai(plain: true).to_s}#{EOR}"}
 
 	pay_load = "http://api.dynu.com/nic/update?hostname=#{Base64.decode64($creds[:host])}" <<
 				 		 "&myip=#{$ip[:v4]}&myipv6=#{$ip[:v6]}" <<

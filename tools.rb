@@ -63,6 +63,8 @@ def bool?(str=nil)
 	result = case str 
 					 when 'true' 	then true
 					 when 'false' then false
+					 when true    then true
+					 when false 	then false
 					 else
 						nil
 					 end
@@ -241,7 +243,7 @@ end
 
 def display_results(stats, type)
 	result_string = %Q(
-put the stuffs here to put on the screen.
+put the stuffs here to put on the screen. And make it pretty.
 	)
 end
 
@@ -251,15 +253,7 @@ Totals For Current Log File: #{stats[:logfile]}
 		# of runs 		| # of unique 		| # of failed attempts		| # of Disconnects		| # of Errors reported
 		  						|	ips logged in		|													|											|
 		--------------|-----------------|-------------------------|---------------------|---------------------
-		stats = {
-			logfile_name:			'',
-			date:							[/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/ 	,0], #YYYY-MM-DD 24:60:60
-			runs:							[/(INFO|DEBUG|ERROR) /,									,0], # create a regex that looks for (DEBUG | INFO | ERROR) capture that and count lines
-			ips_logged: 			['Ip Addresses:'												,0],
-			failed_attempts:	['failed ssh attempts'									,0],
-			disconnects:			['Ping Check Failed.'										,0],
-			errors:						['ERROR'																,0]
-		}
+		
 =end
 def generate_report(read_log_file, sep="\u00B6", report_type='gen')
 #	raise !File.exist?(read_log_file) ? "Unable to generate report from #{read_log_file}" : nil # <<<<<<<<< This needs work ?!?!?!?!?
@@ -344,10 +338,6 @@ NOTES:
 			stats[:disconnects][:total] 		+= 1
 		end
 
-		if record.match(stats[:errors][:err_regex])
-			stats[:errors][:total] 					+= 1
-		end
-
 		stats[:dates][:data]							+= record.scan(stats[:dates][:datetime_regex])
 		binding.pry if $opts[:pry] == 'rec'
 		stats[:ips_logged][:data]					+= record.scan(stats[:ips_logged][:ip_regex])
@@ -365,12 +355,39 @@ NOTES:
 		
 	end 																									# END of Record Filters Logic  ############################
 	
+	stats[:records]										.clear if $opts[:test] == 'clear'
+
 	stats[:runs][:pid_date_buckets]   = bucket
 	stats[:runs][:pid_data]						.flatten!
 	stats[:runs][:pid_data]						.compact!
 	stats[:runs][:pid_data]						.uniq!
 	stats[:runs][:total]							= stats[:runs][:pid_date_buckets].count
 	stats[:runs][:pid_data]						.clear if $opts[:test] == 'clear'
+
+	error_count						 						= 0
+=begin
+	stats[:runs][:pid_date_buckets].each{|bucket|
+		bucket[1].each{|data_str|
+			binding.pry if $opts[:pry] == 'bucket1'
+			if data_str.match(stats[:errors][:err_regex])
+				error_count += 1
+			else
+				next
+			end
+		}
+	}
+=end
+
+	stats[:runs][:pid_date_buckets].each{|bucket|
+		binding.pry if $opts[:pry] == 'bucket0'
+		if bucket[1].join.match(stats[:errors][:err_regex]).nil?
+			next
+		else
+			error_count += 1
+		end
+	}
+
+	stats[:errors][:total]						= error_count
 
 	stats[:dates][:data]							.flatten!
 	stats[:dates][:data]							.compact!
@@ -386,7 +403,7 @@ NOTES:
 	
 #	binding.pry
 	#display_results(stats, report_type)
-	File.open('./testoutfile4.txt', 'w+') {|testie|
+	File.open('./testoutfile6.txt', 'w+') {|testie|
 		testie.write( stats.ai(plain: true) )
 		puts "Report file Generation is Complete."
 	}
