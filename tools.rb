@@ -364,30 +364,17 @@ NOTES:
 	stats[:runs][:total]							= stats[:runs][:pid_date_buckets].count
 	stats[:runs][:pid_data]						.clear if $opts[:test] == 'clear'
 
-	error_count						 						= 0
-=begin
-	stats[:runs][:pid_date_buckets].each{|bucket|
-		bucket[1].each{|data_str|
-			binding.pry if $opts[:pry] == 'bucket1'
-			if data_str.match(stats[:errors][:err_regex])
-				error_count += 1
-			else
-				next
-			end
-		}
-	}
-=end
-
 	stats[:runs][:pid_date_buckets].each{|bucket|
 		binding.pry if $opts[:pry] == 'bucket0'
-		if bucket[1].join.match(stats[:errors][:err_regex]).nil?
-			next
-		else
-			error_count += 1
+		if !(bucket[1].join.match(stats[:errors][:err_regex]).nil?)
+			stats[:errors][:total] += 1
+		end
+		if !(bucket[1].join.match(stats[:disconnects][:discon_regex]).nil?)
+			stats[:disconnects][:total] += 1
 		end
 	}
 
-	stats[:errors][:total]						= error_count
+	stats[:runs][:pid_date_buckets].each	
 
 	stats[:dates][:data]							.flatten!
 	stats[:dates][:data]							.compact!
