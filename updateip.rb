@@ -555,6 +555,8 @@ begin # Begin Main Program main
   ap $opts if $opts[:showopts]
 
 	$Log.debug('[main]'.ljust(LogPad)) {"Ruby Ver. #{%x(ruby -v).chomp}#{EOR}"}
+  $Log.debug('[main]'.ljust(LogPad)) {"Options = #{$opts.ai(plain: true).to_s}#{EOR}"}
+
 	case
 	when  $opts[:parse_ssh] == true 		then ap parse_ssh_logs
 	when  $opts[:parse_ssh] == 'exit'
@@ -595,8 +597,6 @@ begin # Begin Main Program main
 		puts "#{speed}"
 		goodbye(0)
 	end
-
-  $Log.debug('[main]'.ljust(LogPad)) {"Options = #{$opts.ai(plain: true).to_s}#{EOR}"}
 
 	pay_load = "http://api.dynu.com/nic/update?hostname=#{Base64.decode64($creds[:host])}" <<
 				 		 "&myip=#{$ip[:v4]}&myipv6=#{$ip[:v6]}" <<

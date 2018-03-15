@@ -63,6 +63,8 @@ def bool?(str=nil)
 	result = case str 
 					 when 'true' 	then true
 					 when 'false' then false
+					 when true    then true
+					 when false 	then false
 					 else
 						nil
 					 end
@@ -353,6 +355,8 @@ NOTES:
 		
 	end 																									# END of Record Filters Logic  ############################
 	
+	stats[:records]										.clear if $opts[:test] == 'clear'
+
 	stats[:runs][:pid_date_buckets]   = bucket
 	stats[:runs][:pid_data]						.flatten!
 	stats[:runs][:pid_data]						.compact!
@@ -361,12 +365,29 @@ NOTES:
 	stats[:runs][:pid_data]						.clear if $opts[:test] == 'clear'
 
 	error_count						 						= 0
+=begin
 	stats[:runs][:pid_date_buckets].each{|bucket|
-		bucket.each{|datum|
-			datum.match(stats[:errors][:err_regex]) ? error_count += 1 : next
+		bucket[1].each{|data_str|
+			binding.pry if $opts[:pry] == 'bucket1'
+			if data_str.match(stats[:errors][:err_regex])
+				error_count += 1
+			else
+				next
+			end
 		}
 	}
-	stats[:errors][:total]							= error_count
+=end
+
+	stats[:runs][:pid_date_buckets].each{|bucket|
+		binding.pry if $opts[:pry] == 'bucket0'
+		if bucket[1].join.match(stats[:errors][:err_regex]).nil?
+			next
+		else
+			error_count += 1
+		end
+	}
+
+	stats[:errors][:total]						= error_count
 
 	stats[:dates][:data]							.flatten!
 	stats[:dates][:data]							.compact!
@@ -382,7 +403,7 @@ NOTES:
 	
 #	binding.pry
 	#display_results(stats, report_type)
-	File.open('./testoutfile5.txt', 'w+') {|testie|
+	File.open('./testoutfile6.txt', 'w+') {|testie|
 		testie.write( stats.ai(plain: true) )
 		puts "Report file Generation is Complete."
 	}
