@@ -99,7 +99,7 @@ BEGIN{
 		speedtest:	'speedtest --server 11621'
 	}
 	fileck_result = file_check(Depends_on)
-	raise "A File from Depends_on NOT FOUND!! #{fileck_result}" if fileck_result[0] == false || fileck_result[0] == "false"
+	raise NoDependFileError, "A File from Depends_on NOT FOUND!! #{fileck_result}" if fileck_result[0] == false || fileck_result[0] == "false"
 
 	Files 				= {
 		auth:				'/var/log/auth.log',
@@ -184,7 +184,7 @@ BEGIN{
 											end # data assignment
 				$opts[key] 	= data
 			else
-				raise "Arguments must start with a '-' and then the data!!"
+				raise ArgvError, "Arguments must start with a '-' and then the data!!"
 			end # arg.start_with?
 		end # ARGV.each
 	end # if !ARGV.empty?
@@ -259,6 +259,11 @@ BEGIN{
 
 	$Log = Logger.new(Logfile, 'weekly')
   $Log.datetime_format = '%Y-%m-%d %H:%M:%S'
+
+	#p $opts[:test]
+	#error_classes = %w(DisconError PingFailError GetSshFails FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError).map(&:upcase)
+	#run_error_tests($opts[:test].upcase) if error_classes.include?($opts[:test].upcase)
+	#binding.pry if $opts[:pry] == 'test_class'
 
 	case $opts[:log]
   when 'info'
@@ -386,7 +391,7 @@ def checkinet
 		$Log.error('[checkinet]'.ljust(LogPad)) {"ERROR! #{err.backtrace.ai(plain: true).to_s}#{EOR}"}
 		$Log.error('[checkinet]'.ljust(LogPad)) {"ERROR! #{err.inspect}\n#{err.message}\n#{EOR}"}
     $Log.error('[checkinet]'.ljust(LogPad)) {ping_fail + "#{EOR}"}
-    raise ping_fail
+    raise PingFailError, ping_fail
   end
 end
 
@@ -407,7 +412,7 @@ def get_ssh_fails(days=$opts[:timewindow])
 	if is_int?(days)
 		timewindow = 60 * 60 * 24 * days.to_i
 	else
-		raise "Invalid datatype passed to -timewindow!!!"
+		raise GetSshFails, "Invalid datatype passed to -timewindow!!!"
 	end
 	now = Time.now.localtime("-05:00")
 	begin
@@ -421,7 +426,7 @@ def get_ssh_fails(days=$opts[:timewindow])
 		else
 			fails = nil
 			$Log.debug('[get_shh_fails]'.ljust(Logpad)) {"SSH Logs not found! fails == nil#{EOR}"}
-			raise "Unable to find sshd logs!"
+			raise GetSshFails, "Unable to find sshd logs!"
 		end
 		
 		if fails == ""
@@ -491,7 +496,7 @@ def findip
 			break
 	end
 	if result == "" || result == nil
-		raise "ERROR! Unable to get External IP from #{Sites[:ipinfo]}"
+		raise FindIpError, "ERROR! Unable to get External IP from #{Sites[:ipinfo]}"
 	else
 		return result
 	end
@@ -568,7 +573,7 @@ begin # Begin Main Program main
 	when  $opts[:parse_ssh] == 'exit'
 		if !checkinet
 			failure = 'Checkinet failed!'
-			raise failure
+			raise ParseSshError, failure
 			$Log.error('[main-parse_ssh&exit]'.ljust(LogPad)) {"#{failure}#{EOR}"}
 		end
 		content = 'Total Users Logged in: ' + get_users + parse_ssh_logs
@@ -584,16 +589,16 @@ begin # Begin Main Program main
 	end
 
 	if $opts[:test_err] == true
-		raise "Test ERROR!"
+		raise TestError, "Test ERROR!"
 	else
-		raise $opts[:test_err] if !($opts[:test_err] == false)
+		raise TestError, $opts[:test_err] if !($opts[:test_err] == false)
 	end
 
 	binding.pry if $opts[:pry] == 'main0'
   if !checkinet
 		ping_fail = 'Ping Check Failed. Please check Internet Connection and try again!!'
     $Log.error('[main-checkinet]'.ljust(LogPad)) {"#{ping_fail}#{EOR}"}
-    raise ping_fail
+    raise PingFailError, ping_fail
 	else
 		$ip[:v4] = findip
   end
@@ -614,11 +619,11 @@ begin # Begin Main Program main
 		$Log.debug('[main]'.ljust(LogPad)) {"Ping to #{Base64.decode64($creds[:host])} DATA: #{ping(Base64.decode64($creds[:host]))}#{EOR}"}
 		$Log.debug('[main]'.ljust(LogPad)) {"Payload Dump: #{pay_load.ai(plain: true).to_s}#{EOR}"}
 		$Log.debug('[main]'.ljust(LogPad)) {"Curl Dump: #{curl.ai(plain: true).to_s}#{EOR}"}
-		raise "ERROR! Payload empty! No Response from Curl !"
+		raise CurlError, "ERROR! Payload empty! No Response from Curl !"
 	else
 		#contents = curl.lines[3..-1].size >= 1 ? curl.lines.last : curl.lines[3..-1].join(" | ")
 		contents = 	if curl == "" || curl.nil?
-							 		raise "ERROR! Unable to recieve data from #{Depends_on[:curl]} command!"
+							 		raise CurlError, "ERROR! Unable to recieve data from #{Depends_on[:curl]} command!"
 								else
 									curl.strip.lines.size > 1 ? curl.lines.join(" | ") : curl.strip
 								end
@@ -650,6 +655,8 @@ Result of Update: #{contents}
   result << curl if $opts[:showall]
 
 	$Log.debug('[main]'.ljust(LogPad)) {"Result Data : #{result.lines.ai(plain: true).to_s}#{EOR}"}
+
+#	run_error_tests($opts[:test]) if %w(DisconError PingFailError GetSshFails FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError).include?($opts[:test])
 
   puts result
 rescue => err

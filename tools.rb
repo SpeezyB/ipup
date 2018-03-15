@@ -1,6 +1,18 @@
 #!/usr/bin/ruby
 # This Library is used to abstract methods that will be needed
 
+# Define Error Classes
+class DisconError < StandardError; end
+class PingFailError < StandardError; end
+class GetSshFails < StandardError; end
+class FindIpError < StandardError; end
+class TestError < StandardError; end
+class CurlError < StandardError; end
+class ParseSshError < StandardError; end
+class NoDependFileError < StandardError; end
+class ArgvError < StandardError; end
+
+# ----------------------
 def display_help(opt)
 	pad = 0
 	opt.each_key{|key|
@@ -294,11 +306,12 @@ NOTES:
 		}, # runs:																										# done
 		ips_logged: 			{
 			ip_regex: 				/\b@(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/, 		# The '@' filters out the return of the external ip
-			data:							[nil], 
+			data:							[], 
 			total:						0
 		}, # ips_logged:																							# done
 		failed_attempts:	{
 			fail_regex:				/(\d+).failed ssh attempts/i,
+			data:							[],
 			total:						0
 		}, # failed_attempts:																					# done
 		disconnects:			{
@@ -327,16 +340,7 @@ NOTES:
 	stats[:records].uniq!
 
 	bucket = {}
-	stats[:records].each_with_index do |record, idx|			# START of Record Filters Logic ############################
-
-		if record.match(stats[:failed_attempts][:fail_regex]) && \
-				record.match(stats[:failed_attempts][:fail_regex])[1].to_i > 0
-			stats[:failed_attempts][:total] += 1 
-		end
-
-		if !record.match(stats[:disconnects][:discon_regex]).nil?
-			stats[:disconnects][:total] 		+= 1
-		end
+	stats[:records].each do |record|			# START of Record Filters Logic ############################
 
 		stats[:dates][:data]							+= record.scan(stats[:dates][:datetime_regex])
 		binding.pry if $opts[:pry] == 'rec'
@@ -347,7 +351,7 @@ NOTES:
 													 							stats[:runs][:pid_data].last ].flatten
 		bucket_name 											= tmp_strs.join('#').to_sym
 
-		if bucket.has_key?(bucket_name)
+		if bucket.has_key?(bucket_name)								#						USE the End of Run Separator = EndOfRun 		= "\u00B7"
 			bucket[bucket_name].push(record) 						#add to bucket
 		else
 			bucket.update(bucket_name => [record])			#next bucket
@@ -364,13 +368,16 @@ NOTES:
 	stats[:runs][:total]							= stats[:runs][:pid_date_buckets].count
 	stats[:runs][:pid_data]						.clear if $opts[:test] == 'clear'
 
-	stats[:runs][:pid_date_buckets].each{|bucket|
+	stats[:runs][:pid_date_buckets].each{|bucket_ra|
 		binding.pry if $opts[:pry] == 'bucket0'
-		if !(bucket[1].join.match(stats[:errors][:err_regex]).nil?)
-			stats[:errors][:total] += 1
+		if !(bucket_ra[1].join.match(stats[:errors][:err_regex]).nil?)
+			stats[:errors][:total] 					+= 1
 		end
-		if !(bucket[1].join.match(stats[:disconnects][:discon_regex]).nil?)
-			stats[:disconnects][:total] += 1
+		if !(bucket_ra[1].join.match(stats[:disconnects][:discon_regex]).nil?)
+			stats[:disconnects][:total] 		+= 1
+		end
+		if !(bucket_ra[1].join.match(stats[:failed_attempts][:fail_regex]).nil?)
+			stats[:failed_attempts][:total] += 1
 		end
 	}
 
@@ -396,3 +403,16 @@ NOTES:
 	}
 end
 
+def run_error_tests(raise_err)
+	case raise_err
+	when 'DisconError'.upcase 					then raise DisconError,				"Running Custom Class Error Test with #{raise_err} !"
+	when 'PingFailError'.upcase					then raise PingFailError,			"Running Custom Class Error Test with #{raise_err} !"
+	when 'GetSshFails'.upcase						then raise GetSshFails,				"Running Custom Class Error Test with #{raise_err} !"
+	when 'FindIpError'.upcase						then raise FindIpError,				"Running Custom Class Error Test with #{raise_err} !"
+	when 'TestError'.upcase							then raise TestError,					"Running Custom Class Error Test with #{raise_err} !"
+	when 'CurlError'.upcase							then raise CurlError,					"Running Custom Class Error Test with #{raise_err} !"
+	when 'ParseSshError'.upcase					then raise ParseSshError,			"Running Custom Class Error Test with #{raise_err} !"
+	when 'NoDependFileError'.upcase			then raise NoDependFileError, "Running Custom Class Error Test with #{raise_err} !"
+	when 'ArgvError'.upcase							then raise ArgvError, 				"Running Custom Class Error Test with #{raise_err} !"
+	end
+end
