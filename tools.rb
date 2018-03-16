@@ -72,9 +72,9 @@ def display_help(opt)
 end
 
 def bool?(str=nil)
-	result = case str 
-						when true, 'true' 	 then true
-						when false, 'false'  then false
+	result = case str
+						when true, 'true', 'TRUE' 	 then true
+						when false, 'false', 'FALSE' then false
 					 else
 						str
 					 end

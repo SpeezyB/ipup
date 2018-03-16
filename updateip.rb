@@ -260,11 +260,6 @@ BEGIN{
 	$Log = Logger.new(Logfile, 'weekly')
   $Log.datetime_format = '%Y-%m-%d %H:%M:%S'
 
-	#p $opts[:test]
-	#error_classes = %w(DisconError PingFailError GetSshFails FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError).map(&:upcase)
-	#run_error_tests($opts[:test].upcase) if error_classes.include?($opts[:test].upcase)
-	#binding.pry if $opts[:pry] == 'test_class'
-
 	case $opts[:log]
   when 'info'
     $Log.level = Logger::INFO
@@ -313,11 +308,6 @@ BEGIN{
 				args.shift
 			}
 			in_place_update(arg_hash)
-#			if args[0] == 'backup' && args[1].nil?
-#				in_place_update(args[0])
-#			else
-#				in_place_update(args[0], args[1])
-#			end
 		end
 	end
 
@@ -325,7 +315,7 @@ BEGIN{
 } # End of Startup Biz
 
 def goodbye(code=0)
-	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"} if bool?($opts[:goodbye])
+	#$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"} if bool?($opts[:goodbye])
 	$Log.close
 
 	exit!(code) if $opts[:log] == 'cleandebug' # Just exit as there will be nothing to parse for errors
@@ -568,6 +558,10 @@ begin # Begin Main Program main
 	$Log.debug('[main]'.ljust(LogPad)) {"Ruby Ver. #{%x(ruby -v).chomp}#{EOR}"}
   $Log.debug('[main]'.ljust(LogPad)) {"Options = #{$opts.ai(plain: true).to_s}#{EOR}"}
 
+	error_classes = %w(DisconError PingFailError GetSshFails FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError).map(&:upcase)
+	run_error_tests($opts[:test].upcase) if error_classes.include?($opts[:test].upcase)
+	binding.pry if $opts[:pry] == 'test_class'
+
 	case
 	when  $opts[:parse_ssh] == true 		then ap parse_ssh_logs
 	when  $opts[:parse_ssh] == 'exit'
@@ -662,7 +656,7 @@ Result of Update: #{contents}
 rescue => err
 	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR! #{err.backtrace.ai(plain: true).to_s}#{EOR}"}
 	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR! #{err.inspect}#{EOR}"}
-	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR!#{EOR}"}
+	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR!#{EndOfRun}#{EOR}"}
 	STDERR.puts "Error! -> #{err.message}\n#{err.inspect}\n#{err.backtrace}\n\n"
 	goodbye
 end
