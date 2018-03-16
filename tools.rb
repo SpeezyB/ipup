@@ -61,12 +61,10 @@ end
 
 def bool?(str=nil)
 	result = case str 
-					 when 'true' 	then true
-					 when 'false' then false
-					 when true    then true
-					 when false 	then false
+						when true, 'true' 	 then true
+						when false, 'false'  then false
 					 else
-						nil
+						str
 					 end
 	result
 end
@@ -130,8 +128,8 @@ def get_fname_bak(rfname)
 end
 
 def in_place_update(opt={
-				backupfiles: 	'none', 
-				cpfiles: 			'all', 
+				backup: 			'none', 
+				copy:		 			'all', 
 				show: 				false, 
 				to_tar: 			true, 
 				name: 				'archive_logs_baks.tar',
@@ -139,16 +137,18 @@ def in_place_update(opt={
 	#require 'minitar'
 	#require 'zlib'
 	# copy the 2update.rb and 2tools.rb to update.rb & tools.rb
+	opt[:show] 		= bool?(opt[:show])
+	opt[:to_tar]	=	bool?(opt[:to_tar])
 	puts "Upgrading Staging to Production ... "
 	dir = File.absolute_path(__FILE__).split('/')[0..-2].join('/') + '/'
 	Dir.chdir(dir)
 	tar_file_name = opt[:name] || 'archive_logs_baks.tar'
-	puts "cpfiles=#{opt[:cpfiles]} // backupfiles=#{opt[:backupfiles]}" if opt[:show]
+	puts "copy=#{opt[:copy]} // backup=#{opt[:backup]}" if opt[:show]
 	pwd = Dir.pwd
 	ap opt if opt[:show]
 	
 	binding.pry if $opts[:pry] == 'update'
-	case opt[:backupfiles]
+	case opt[:backup]
 	when 'tools', 'lib', 'libs' # tools.rb.bak<increment number>
 		rootfname 	= "#{dir}tools.rb"
 		fname 			= get_fname_bak(rootfname) 
@@ -170,7 +170,7 @@ def in_place_update(opt={
 		puts system(bkexec_str) ? "Backup of 'updateip.rb' & 'tools.rb' Complete!" : "Error backup interupted!"
 	else # 'none'
 		bkexec_str 	= " "
-	end # backupfiles
+	end # backup
 
 	if opt[:to_tar]
 		to_exclude 	= Dir[tar_file_name, "*.swp", "*updateip.rb", "*updateip.log",
@@ -190,7 +190,7 @@ def in_place_update(opt={
 	end
 
 	puts "Starting Upgrading from Staging to Production..."
-	case opt[:cpfiles]
+	case opt[:copy]
 	when 'tools', 'lib', 'libs'
 		cpexec_str 	= "cp -f #{dir}2tools.rb #{dir}tools.rb"
 		p cpexec_str if opt[:show]
@@ -205,7 +205,7 @@ def in_place_update(opt={
 		puts system(cpexec_str) ? "Upgrade from staging to Production Complete!" : "Error Upgrading NOT Completed!"
 	else # 'none'
 		cpexec_str = " "
-	end # cpfiles
+	end # copy
 
 	exit
 end

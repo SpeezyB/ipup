@@ -302,11 +302,17 @@ BEGIN{
 			in_place_update		#plain, no backup
 		else
 			args = $opts[:update_to_prod].split(' ')
-			if args[0] == 'backup' && args[1].nil?
-				in_place_update(args[0])
-			else
-				in_place_update(args[0], args[1])
-			end
+			arg_hash = {}
+			args.count.times {
+				arg_hash.store(args[0].split('=')[0].to_sym, bool?(args[0].split('=')[1]))
+				args.shift
+			}
+			in_place_update(arg_hash)
+#			if args[0] == 'backup' && args[1].nil?
+#				in_place_update(args[0])
+#			else
+#				in_place_update(args[0], args[1])
+#			end
 		end
 	end
 
