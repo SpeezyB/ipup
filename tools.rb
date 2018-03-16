@@ -2,9 +2,9 @@
 # This Library is used to abstract methods that will be needed
 
 # Define Error Classes
-class DisconError < StandardError; end
+#class DisconError < StandardError; end		# Is this used?
 class PingFailError < StandardError; end
-class GetSshFails < StandardError; end
+class GetSshFailsError < StandardError; end
 class FindIpError < StandardError; end
 class TestError < StandardError; end
 class CurlError < StandardError; end
@@ -315,7 +315,7 @@ NOTES:
 			total:						0
 		}, # failed_attempts:																					# done
 		disconnects:			{
-			discon_regex:			/\#<RuntimeError: Ping Check Failed\./i,
+			discon_regex:			/\#<PingFailError: Ping Check Failed\./i,
 			total:						0
 		}, # disconnects:
 		errors:						{

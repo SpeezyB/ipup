@@ -56,7 +56,7 @@ BEGIN{
 	
 	EOR					= "\u00B6"
 	EndOfRun 		= "\u00B7"
-	Bools				= %w(true false)
+	Bools				= %w(true false TRUE FALSE True False) + [true, false]
 #	Ip_Regex		= Resolv::AddressRegex 		# /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
 	Ip_Regex		= /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
 	Max_tries		= 3
@@ -402,7 +402,7 @@ def get_ssh_fails(days=$opts[:timewindow])
 	if is_int?(days)
 		timewindow = 60 * 60 * 24 * days.to_i
 	else
-		raise GetSshFails, "Invalid datatype passed to -timewindow!!!"
+		raise GetSshFailsError, "Invalid datatype passed to -timewindow!!!"
 	end
 	now = Time.now.localtime("-05:00")
 	begin
@@ -416,7 +416,7 @@ def get_ssh_fails(days=$opts[:timewindow])
 		else
 			fails = nil
 			$Log.debug('[get_shh_fails]'.ljust(Logpad)) {"SSH Logs not found! fails == nil#{EOR}"}
-			raise GetSshFails, "Unable to find sshd logs!"
+			raise GetSshFailsError, "Unable to find sshd logs!"
 		end
 		
 		if fails == ""
@@ -481,12 +481,16 @@ def findip
 	Sites[:checkip].each do |key, site|
 		result = %x(#{Depends_on[:curl]} "#{site}" 2>/dev/null).split(' ').last
 		$Log.debug('[findip]'.ljust(LogPad)) {"Using #{site} to resolve IP ... #{EOR}"}
-		result.nil? ? \
-			$Log.debug('[findip]'.ljust(LogPad)) {"No IP from #{site} #{EOR}"} : \
+		if result.nil?
+			$Log.debug('[findip]'.ljust(LogPad)) {"No IP from #{site} #{EOR}"}
+		else
 			break
-	end
+		end
+	end # Checkip on each site
+
 	if result == "" || result == nil
-		raise FindIpError, "ERROR! Unable to get External IP from #{Sites[:ipinfo]}"
+		all_sites = [Sites.dig(:checkip, :dynu), Sites.dig(:checkip, :ipinfo), Sites.dig(:checkip, :ifconfigme)]
+		raise FindIpError, "ERROR! Unable to get External IP from #{all_sites.join(' or ')}"
 	else
 		return result
 	end
@@ -558,9 +562,12 @@ begin # Begin Main Program main
 	$Log.debug('[main]'.ljust(LogPad)) {"Ruby Ver. #{%x(ruby -v).chomp}#{EOR}"}
   $Log.debug('[main]'.ljust(LogPad)) {"Options = #{$opts.ai(plain: true).to_s}#{EOR}"}
 
-	error_classes = %w(DisconError PingFailError GetSshFails FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError).map(&:upcase)
-	run_error_tests($opts[:test].upcase) if error_classes.include?($opts[:test].upcase)
-	binding.pry if $opts[:pry] == 'test_class'
+	error_classes = %w(DisconError PingFailError GetSshFails FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError)
+	if $opts[:test] != false
+		error_classes.map!(&:upcase)
+		run_error_tests($opts[:test].upcase) if $opts[:test] != false || error_classes.include?($opts[:test].upcase)
+		binding.pry if $opts[:pry] == 'test_class'
+	end
 
 	case
 	when  $opts[:parse_ssh] == true 		then ap parse_ssh_logs
