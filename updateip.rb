@@ -56,10 +56,10 @@ BEGIN{
 	
 	EOR					= "\u00B6"
 	EndOfRun 		= "\u00B7"
-	Bools				= %w(true false)
+	Bools				= %w(true false TRUE FALSE True False) + [true, false]
 #	Ip_Regex		= Resolv::AddressRegex 		# /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
 	Ip_Regex		= /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
-	Max_tries		= 3
+	Max_tries		= 1 # default = 3
 	LogPad			= 25
 
 	Prog_parts	=	{
@@ -99,7 +99,7 @@ BEGIN{
 		speedtest:	'speedtest --server 11621'
 	}
 	fileck_result = file_check(Depends_on)
-	raise "A File from Depends_on NOT FOUND!! #{fileck_result}" if fileck_result[0] == false || fileck_result[0] == "false"
+	raise NoDependFileError, "A File from Depends_on NOT FOUND!! #{fileck_result}" if fileck_result[0] == false || fileck_result[0] == "false"
 
 	Files 				= {
 		auth:				'/var/log/auth.log',
@@ -184,7 +184,7 @@ BEGIN{
 											end # data assignment
 				$opts[key] 	= data
 			else
-				raise "Arguments must start with a '-' and then the data!!"
+				raise ArgvError, "Arguments must start with a '-' and then the data!!"
 			end # arg.start_with?
 		end # ARGV.each
 	end # if !ARGV.empty?
@@ -308,11 +308,6 @@ BEGIN{
 				args.shift
 			}
 			in_place_update(arg_hash)
-#			if args[0] == 'backup' && args[1].nil?
-#				in_place_update(args[0])
-#			else
-#				in_place_update(args[0], args[1])
-#			end
 		end
 	end
 
@@ -320,7 +315,7 @@ BEGIN{
 } # End of Startup Biz
 
 def goodbye(code=0)
-	$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"} if bool?($opts[:goodbye])
+	#$Log.debug('[Goodbye]'.ljust(LogPad)) {"Goodbye.#{EndOfRun}#{EOR}"} if bool?($opts[:goodbye])
 	$Log.close
 
 	exit!(code) if $opts[:log] == 'cleandebug' # Just exit as there will be nothing to parse for errors
@@ -386,7 +381,7 @@ def checkinet
 		$Log.error('[checkinet]'.ljust(LogPad)) {"ERROR! #{err.backtrace.ai(plain: true).to_s}#{EOR}"}
 		$Log.error('[checkinet]'.ljust(LogPad)) {"ERROR! #{err.inspect}\n#{err.message}\n#{EOR}"}
     $Log.error('[checkinet]'.ljust(LogPad)) {ping_fail + "#{EOR}"}
-    raise ping_fail
+    raise PingFailError, ping_fail
   end
 end
 
@@ -407,7 +402,7 @@ def get_ssh_fails(days=$opts[:timewindow])
 	if is_int?(days)
 		timewindow = 60 * 60 * 24 * days.to_i
 	else
-		raise "Invalid datatype passed to -timewindow!!!"
+		raise GetSshFailsError, "Invalid datatype passed to -timewindow!!!"
 	end
 	now = Time.now.localtime("-05:00")
 	begin
@@ -421,7 +416,7 @@ def get_ssh_fails(days=$opts[:timewindow])
 		else
 			fails = nil
 			$Log.debug('[get_shh_fails]'.ljust(Logpad)) {"SSH Logs not found! fails == nil#{EOR}"}
-			raise "Unable to find sshd logs!"
+			raise GetSshFailsError, "Unable to find sshd logs!"
 		end
 		
 		if fails == ""
@@ -486,12 +481,16 @@ def findip
 	Sites[:checkip].each do |key, site|
 		result = %x(#{Depends_on[:curl]} "#{site}" 2>/dev/null).split(' ').last
 		$Log.debug('[findip]'.ljust(LogPad)) {"Using #{site} to resolve IP ... #{EOR}"}
-		result.nil? ? \
-			$Log.debug('[findip]'.ljust(LogPad)) {"No IP from #{site} #{EOR}"} : \
+		if result.nil?
+			$Log.debug('[findip]'.ljust(LogPad)) {"No IP from #{site} #{EOR}"}
+		else
 			break
-	end
+		end
+	end # Checkip on each site
+
 	if result == "" || result == nil
-		raise "ERROR! Unable to get External IP from #{Sites[:ipinfo]}"
+		all_sites = [Sites.dig(:checkip, :dynu), Sites.dig(:checkip, :ipinfo), Sites.dig(:checkip, :ifconfigme)]
+		raise FindIpError, "ERROR! Unable to get External IP from #{all_sites.join(' or ')}"
 	else
 		return result
 	end
@@ -563,12 +562,19 @@ begin # Begin Main Program main
 	$Log.debug('[main]'.ljust(LogPad)) {"Ruby Ver. #{%x(ruby -v).chomp}#{EOR}"}
   $Log.debug('[main]'.ljust(LogPad)) {"Options = #{$opts.ai(plain: true).to_s}#{EOR}"}
 
+	error_classes = %w(DisconError PingFailError GetSshFails FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError)
+	if $opts[:test] != false
+		error_classes.map!(&:upcase)
+		run_error_tests($opts[:test].upcase) if $opts[:test] != false || error_classes.include?($opts[:test].upcase)
+		binding.pry if $opts[:pry] == 'test_class'
+	end
+
 	case
 	when  $opts[:parse_ssh] == true 		then ap parse_ssh_logs
 	when  $opts[:parse_ssh] == 'exit'
 		if !checkinet
 			failure = 'Checkinet failed!'
-			raise failure
+			raise ParseSshError, failure
 			$Log.error('[main-parse_ssh&exit]'.ljust(LogPad)) {"#{failure}#{EOR}"}
 		end
 		content = 'Total Users Logged in: ' + get_users + parse_ssh_logs
@@ -584,16 +590,16 @@ begin # Begin Main Program main
 	end
 
 	if $opts[:test_err] == true
-		raise "Test ERROR!"
+		raise TestError, "Test ERROR!"
 	else
-		raise $opts[:test_err] if !($opts[:test_err] == false)
+		raise TestError, $opts[:test_err] if !($opts[:test_err] == false)
 	end
 
 	binding.pry if $opts[:pry] == 'main0'
   if !checkinet
 		ping_fail = 'Ping Check Failed. Please check Internet Connection and try again!!'
     $Log.error('[main-checkinet]'.ljust(LogPad)) {"#{ping_fail}#{EOR}"}
-    raise ping_fail
+    raise PingFailError, ping_fail
 	else
 		$ip[:v4] = findip
   end
@@ -614,11 +620,11 @@ begin # Begin Main Program main
 		$Log.debug('[main]'.ljust(LogPad)) {"Ping to #{Base64.decode64($creds[:host])} DATA: #{ping(Base64.decode64($creds[:host]))}#{EOR}"}
 		$Log.debug('[main]'.ljust(LogPad)) {"Payload Dump: #{pay_load.ai(plain: true).to_s}#{EOR}"}
 		$Log.debug('[main]'.ljust(LogPad)) {"Curl Dump: #{curl.ai(plain: true).to_s}#{EOR}"}
-		raise "ERROR! Payload empty! No Response from Curl !"
+		raise CurlError, "ERROR! Payload empty! No Response from Curl !"
 	else
 		#contents = curl.lines[3..-1].size >= 1 ? curl.lines.last : curl.lines[3..-1].join(" | ")
 		contents = 	if curl == "" || curl.nil?
-							 		raise "ERROR! Unable to recieve data from #{Depends_on[:curl]} command!"
+							 		raise CurlError, "ERROR! Unable to recieve data from #{Depends_on[:curl]} command!"
 								else
 									curl.strip.lines.size > 1 ? curl.lines.join(" | ") : curl.strip
 								end
@@ -651,11 +657,13 @@ Result of Update: #{contents}
 
 	$Log.debug('[main]'.ljust(LogPad)) {"Result Data : #{result.lines.ai(plain: true).to_s}#{EOR}"}
 
+#	run_error_tests($opts[:test]) if %w(DisconError PingFailError GetSshFailsError FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError).include?($opts[:test])
+
   puts result
 rescue => err
 	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR! #{err.backtrace.ai(plain: true).to_s}#{EOR}"}
 	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR! #{err.inspect}#{EOR}"}
-	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR!#{EOR}"}
+	$Log.error('[main-rescue]'.ljust(LogPad)) {"ERROR!#{EndOfRun}#{EOR}"}
 	STDERR.puts "Error! -> #{err.message}\n#{err.inspect}\n#{err.backtrace}\n\n"
 	goodbye
 end

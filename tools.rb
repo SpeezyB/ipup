@@ -1,6 +1,18 @@
 #!/usr/bin/ruby
 # This Library is used to abstract methods that will be needed
 
+# Define Error Classes
+#class DisconError < StandardError; end		# Is this used?
+class PingFailError < StandardError; end
+class GetSshFailsError < StandardError; end
+class FindIpError < StandardError; end
+class TestError < StandardError; end
+class CurlError < StandardError; end
+class ParseSshError < StandardError; end
+class NoDependFileError < StandardError; end
+class ArgvError < StandardError; end
+
+# ----------------------
 def display_help(opt)
 	pad = 0
 	opt.each_key{|key|
@@ -60,9 +72,9 @@ def display_help(opt)
 end
 
 def bool?(str=nil)
-	result = case str 
-						when true, 'true' 	 then true
-						when false, 'false'  then false
+	result = case str
+						when true, 'true', 'TRUE' 	 then true
+						when false, 'false', 'FALSE' then false
 					 else
 						str
 					 end
@@ -282,7 +294,7 @@ NOTES:
 			date_regex: 			/\[(\d{4}-\d{2}-\d{2})_/, 
 			datetime_regex: 	/\[(\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2})#/, # YYYY-MM-DD_HH:MM:SS
 			data: 						[],	
-			total: 						0
+			total: 						0,
 		}, # dates:																										# done
 		runs:							{
 			run_regex: 				/(INFO|DEBUG|ERROR) /, 
@@ -290,27 +302,57 @@ NOTES:
 			pid_data:					[],
 			#pid_date_regex:		/\[(\d{4}-\d{2}-\d{2}_\d{2}:\d{2}.{3}#\d{3,6}) *\]/,		# Not needed??
 			pid_date_buckets:	[],
-			total:						0
+			total:						0,
 		}, # runs:																										# done
 		ips_logged: 			{
 			ip_regex: 				/\b@(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/, 		# The '@' filters out the return of the external ip
-			data:							[nil], 
-			total:						0
+			data:							[], 
+			total:						0,
 		}, # ips_logged:																							# done
 		failed_attempts:	{
-			fail_regex:				/(\d+).failed ssh attempts/i,
-			total:						0
+			fail_regex:				/(\d+[1-9]).failed ssh attempts/i,
+			data:							[],
+			total:						0,
 		}, # failed_attempts:																					# done
 		disconnects:			{
-			discon_regex:			/\#<RuntimeError: Ping Check Failed\./i,
-			total:						0
-		}, # disconnects:
+			discon_regex:			/\#<PingFailError: Ping Check Failed\./i,
+			total:						0,
+		}, # disconnects:																							# done
+		getsshfailserr:		{
+			err_regex:				/\#<GetSshFailsError:/i,
+			total:						0,
+		}, # GetSshFailsError																					# done
+		findiperr:				{
+			err_regex:				/\#<FindIpError:/i,
+			total:						0,
+		}, # FindIpError																							# done
+		testerr:					{
+			err_regex:				/\#<TestError:/i,
+			total:						0,
+		}, # TestError																								# done
+		curlerr:					{
+			err_regex:				/\#<CurlError:/i,
+			total:						0,
+		}, # CurlError																								# done
+		parsessherr:			{
+			err_regex:				/\#<ParseSshError:/i,
+			total:						0,
+		}, # ParseSshError																						# done
+		nodependerr:			{
+			err_regex:				/\#<NoDependFileError:/i,
+			total:						0,
+		}, # NoDependFileError																				# done
+		argverr:					{
+			err_regex:				/\#<ArgvError:/i,
+			total:						0,
+		}, # ArgvError																								# done
 		errors:						{
-			err_regex:				/ERROR/, 
-			total:						0
+			err_regex:				/ERROR/,
+			#error_classes:		%w(DisconError PingFailError GetSshFailsError FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError),
+			total:						0,
 		}	# errors:
 	}
-
+	
 	rec = IO.readlines(stats[:logfile_name], sep=sep)
 	rec.each do |line|
 		lin = line
@@ -327,16 +369,7 @@ NOTES:
 	stats[:records].uniq!
 
 	bucket = {}
-	stats[:records].each_with_index do |record, idx|			# START of Record Filters Logic ############################
-
-		if record.match(stats[:failed_attempts][:fail_regex]) && \
-				record.match(stats[:failed_attempts][:fail_regex])[1].to_i > 0
-			stats[:failed_attempts][:total] += 1 
-		end
-
-		if !record.match(stats[:disconnects][:discon_regex]).nil?
-			stats[:disconnects][:total] 		+= 1
-		end
+	stats[:records].each do |record|			# START of Record Filters Logic ############################
 
 		stats[:dates][:data]							+= record.scan(stats[:dates][:datetime_regex])
 		binding.pry if $opts[:pry] == 'rec'
@@ -344,17 +377,17 @@ NOTES:
 		stats[:runs][:pid_data]						.push(record.scan(stats[:runs][:pid_regex]))
 
 		tmp_strs 													= [stats[:dates][:data].flatten.last[0..-4], 
-													 							stats[:runs][:pid_data].last ].flatten
+													 								stats[:runs][:pid_data].last ].flatten
 		bucket_name 											= tmp_strs.join('#').to_sym
 
-		if bucket.has_key?(bucket_name)
+		if bucket.has_key?(bucket_name)								#						USE the End of Run Separator = EndOfRun 		= "\u00B7"
 			bucket[bucket_name].push(record) 						#add to bucket
 		else
 			bucket.update(bucket_name => [record])			#next bucket
 		end
-		
+
 	end 																									# END of Record Filters Logic  ############################
-	
+
 	stats[:records]										.clear if $opts[:test] == 'clear'
 
 	stats[:runs][:pid_date_buckets]   = bucket
@@ -364,30 +397,35 @@ NOTES:
 	stats[:runs][:total]							= stats[:runs][:pid_date_buckets].count
 	stats[:runs][:pid_data]						.clear if $opts[:test] == 'clear'
 
-	error_count						 						= 0
-=begin
-	stats[:runs][:pid_date_buckets].each{|bucket|
-		bucket[1].each{|data_str|
-			binding.pry if $opts[:pry] == 'bucket1'
-			if data_str.match(stats[:errors][:err_regex])
-				error_count += 1
-			else
-				next
-			end
-		}
-	}
-=end
-
-	stats[:runs][:pid_date_buckets].each{|bucket|
+	stats[:runs][:pid_date_buckets].each{|bucket_ra|
 		binding.pry if $opts[:pry] == 'bucket0'
-		if bucket[1].join.match(stats[:errors][:err_regex]).nil?
-			next
-		else
-			error_count += 1
+		if !(bucket_ra[1].join.match(stats[:errors][:err_regex]).nil?)
+			stats[:errors][:total] 						+= 1
+			# Each Error Class
+			stats[:getsshfailserr][:total]	+= !(bucket_ra[1].join.match(stats[:getsshfailserr][:err_regex]).nil?) 	? 1 : 0
+			
+			stats[:findiperr][:total]				+= !(bucket_ra[1].join.match(stats[:findiperr][:err_regex]).nil?) 			? 1 : 0
+				
+			stats[:testerr][:total]					+= !(bucket_ra[1].join.match(stats[:testerr][:err_regex]).nil?)					? 1 : 0
+			
+			stats[:curlerr][:total]					+= !(bucket_ra[1].join.match(stats[:curlerr][:err_regex]).nil?)					? 1 : 0
+
+			stats[:parsessherr][:total]			+= !(bucket_ra[1].join.match(stats[:parsessherr][:err_regex]).nil?) 		? 1 : 0
+
+			stats[:nodependerr][:total]			+= !(bucket_ra[1].join.match(stats[:nodependerr][:err_regex]).nil?)			? 1 : 0
+			
+			stats[:argverr][:total]					+= !(bucket_ra[1].join.match(stats[:argverr][:err_regex]).nil?)					? 1 : 0
+		end
+
+		if !(bucket_ra[1].join.match(stats[:disconnects][:discon_regex]).nil?)
+			stats[:disconnects][:total] 		+= 1
+		end
+		if !(bucket_ra[1].join.match(stats[:failed_attempts][:fail_regex]).nil?)
+			stats[:failed_attempts][:total] += 1
 		end
 	}
 
-	stats[:errors][:total]						= error_count
+	stats[:runs][:pid_date_buckets].each	
 
 	stats[:dates][:data]							.flatten!
 	stats[:dates][:data]							.compact!
@@ -409,3 +447,16 @@ NOTES:
 	}
 end
 
+def run_error_tests(raise_err)
+	case raise_err
+	when 'DisconError'.upcase 					then raise DisconError,				"Running Custom Class Error Test with #{raise_err} !"
+	when 'PingFailError'.upcase					then raise PingFailError,			"Running Custom Class Error Test with #{raise_err} !"
+	when 'GetSshFails'.upcase						then raise GetSshFailsError,	"Running Custom Class Error Test with #{raise_err} !"
+	when 'FindIpError'.upcase						then raise FindIpError,				"Running Custom Class Error Test with #{raise_err} !"
+	when 'TestError'.upcase							then raise TestError,					"Running Custom Class Error Test with #{raise_err} !"
+	when 'CurlError'.upcase							then raise CurlError,					"Running Custom Class Error Test with #{raise_err} !"
+	when 'ParseSshError'.upcase					then raise ParseSshError,			"Running Custom Class Error Test with #{raise_err} !"
+	when 'NoDependFileError'.upcase			then raise NoDependFileError, "Running Custom Class Error Test with #{raise_err} !"
+	when 'ArgvError'.upcase							then raise ArgvError, 				"Running Custom Class Error Test with #{raise_err} !"
+	end
+end

@@ -1,2 +1,2 @@
 # ipup
-ip updater for a dynamic DNS that will also check for login attempts 
+ip updater for a dynamic DNS (dynu.com) that will also check for login attempts on raspberry pi
