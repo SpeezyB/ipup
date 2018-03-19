@@ -59,7 +59,7 @@ BEGIN{
 	Bools				= %w(true false TRUE FALSE True False) + [true, false]
 #	Ip_Regex		= Resolv::AddressRegex 		# /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
 	Ip_Regex		= /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
-	Max_tries		= 3
+	Max_tries		= 1 # default = 3
 	LogPad			= 25
 
 	Prog_parts	=	{

@@ -310,42 +310,42 @@ NOTES:
 			total:						0,
 		}, # ips_logged:																							# done
 		failed_attempts:	{
-			fail_regex:				/(\d+).failed ssh attempts/i,
+			fail_regex:				/(\d+[1-9]).failed ssh attempts/i,
 			data:							[],
 			total:						0,
 		}, # failed_attempts:																					# done
 		disconnects:			{
 			discon_regex:			/\#<PingFailError: Ping Check Failed\./i,
 			total:						0,
-		}, # disconnects:
+		}, # disconnects:																							# done
 		getsshfailserr:		{
 			err_regex:				/\#<GetSshFailsError:/i,
 			total:						0,
-		}, # GetSshFailsError
+		}, # GetSshFailsError																					# done
 		findiperr:				{
 			err_regex:				/\#<FindIpError:/i,
 			total:						0,
-		}, # FindIpError
+		}, # FindIpError																							# done
 		testerr:					{
 			err_regex:				/\#<TestError:/i,
 			total:						0,
-		}, # TestError
+		}, # TestError																								# done
 		curlerr:					{
 			err_regex:				/\#<CurlError:/i,
 			total:						0,
-		}, # CurlError
+		}, # CurlError																								# done
 		parsessherr:			{
 			err_regex:				/\#<ParseSshError:/i,
 			total:						0,
-		}, # ParseSshError
+		}, # ParseSshError																						# done
 		nodependerr:			{
 			err_regex:				/\#<NoDependFileError:/i,
 			total:						0,
-		}, # NoDependFileError
+		}, # NoDependFileError																				# done
 		argverr:					{
 			err_regex:				/\#<ArgvError:/i,
 			total:						0,
-		}, # ArgvError
+		}, # ArgvError																								# done
 		errors:						{
 			err_regex:				/ERROR/,
 			#error_classes:		%w(DisconError PingFailError GetSshFailsError FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError),
@@ -377,7 +377,7 @@ NOTES:
 		stats[:runs][:pid_data]						.push(record.scan(stats[:runs][:pid_regex]))
 
 		tmp_strs 													= [stats[:dates][:data].flatten.last[0..-4], 
-													 stats[:runs][:pid_data].last ].flatten
+													 								stats[:runs][:pid_data].last ].flatten
 		bucket_name 											= tmp_strs.join('#').to_sym
 
 		if bucket.has_key?(bucket_name)								#						USE the End of Run Separator = EndOfRun 		= "\u00B7"
@@ -402,27 +402,19 @@ NOTES:
 		if !(bucket_ra[1].join.match(stats[:errors][:err_regex]).nil?)
 			stats[:errors][:total] 						+= 1
 			# Each Error Class
-			if !(bucket_ra[1].join.match(stats[:getsshfailserr][:err_regex]).nil?)
-				stats[:getsshfailserr][:total]	+= 1
-			end
-			if !(bucket_ra[1].join.match(stats[:findiperr][:err_regex]).nil?)
-				stats[:findiperr][:total]				+= 1
-			end
-			if !(bucket_ra[1].join.match(stats[:testerr][:err_regex]).nil?)
-				stats[:testerr][:total]					+= 1
-			end
-			if !(bucket_ra[1].join.match(stats[:curlerr][:err_regex]).nil?)
-				stats[:curlerr][:total]					+= 1
-			end
-			if !(bucket_ra[1].join.match(stats[:parsessherr][:err_regex]).nil?)
-				stats[:parsessherr][:total]			+= 1
-			end
-			if !(bucket_ra[1].join.match(stats[:nodependerr][:err_regex]).nil?)
-				stats[:nodependerr][:total]			+= 1
-			end
-			if !(bucket_ra[1].join.match(stats[:argverr][:err_regex]).nil?)
-				stats[:argverr][:total]					+= 1
-			end
+			stats[:getsshfailserr][:total]	+= !(bucket_ra[1].join.match(stats[:getsshfailserr][:err_regex]).nil?) 	? 1 : 0
+			
+			stats[:findiperr][:total]				+= !(bucket_ra[1].join.match(stats[:findiperr][:err_regex]).nil?) 			? 1 : 0
+				
+			stats[:testerr][:total]					+= !(bucket_ra[1].join.match(stats[:testerr][:err_regex]).nil?)					? 1 : 0
+			
+			stats[:curlerr][:total]					+= !(bucket_ra[1].join.match(stats[:curlerr][:err_regex]).nil?)					? 1 : 0
+
+			stats[:parsessherr][:total]			+= !(bucket_ra[1].join.match(stats[:parsessherr][:err_regex]).nil?) 		? 1 : 0
+
+			stats[:nodependerr][:total]			+= !(bucket_ra[1].join.match(stats[:nodependerr][:err_regex]).nil?)			? 1 : 0
+			
+			stats[:argverr][:total]					+= !(bucket_ra[1].join.match(stats[:argverr][:err_regex]).nil?)					? 1 : 0
 		end
 
 		if !(bucket_ra[1].join.match(stats[:disconnects][:discon_regex]).nil?)
