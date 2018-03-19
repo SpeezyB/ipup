@@ -657,7 +657,7 @@ Result of Update: #{contents}
 
 	$Log.debug('[main]'.ljust(LogPad)) {"Result Data : #{result.lines.ai(plain: true).to_s}#{EOR}"}
 
-#	run_error_tests($opts[:test]) if %w(DisconError PingFailError GetSshFails FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError).include?($opts[:test])
+#	run_error_tests($opts[:test]) if %w(DisconError PingFailError GetSshFailsError FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError).include?($opts[:test])
 
   puts result
 rescue => err
