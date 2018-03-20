@@ -479,7 +479,11 @@ end
 def findip
 	result = ''
 	Sites[:checkip].each do |key, site|
-		result = %x(#{Depends_on[:curl]} "#{site}" 2>/dev/null).split(' ').last
+		result = if $opts[:test] == 'findip.fail' 
+							 nil 
+						 else
+							 %x(#{Depends_on[:curl]} "#{site}" 2>/dev/null).split(' ').last
+						 end
 		$Log.debug('[findip]'.ljust(LogPad)) {"Using #{site} to resolve IP ... #{EOR}"}
 		if result.nil?
 			$Log.debug('[findip]'.ljust(LogPad)) {"No IP from #{site} #{EOR}"}
@@ -489,8 +493,8 @@ def findip
 	end # Checkip on each site
 
 	if result == "" || result == nil
-		all_sites = [Sites.dig(:checkip, :dynu), Sites.dig(:checkip, :ipinfo), Sites.dig(:checkip, :ifconfigme)]
-		raise FindIpError, "ERROR! Unable to get External IP from #{all_sites.join(' or ')}"
+		binding.pry if $opts[:pry] == 'findip.result'
+		raise FindIpError, "ERROR! Unable to get External IP from #{Sites[:checkip].values.join(' or ')}"
 	else
 		return result
 	end
