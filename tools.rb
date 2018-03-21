@@ -380,10 +380,10 @@ NOTES:
                                           stats[:runs][:pid_data].last ].flatten
     bucket_name                       = tmp_strs.join('#').to_sym
 
-    if bucket.has_key?(bucket_name)               #           USE the End of Run Separator = EndOfRun     = "\u00B7"
-      bucket[bucket_name].push(record)            #add to bucket
+    if !(bucket.has_key?(bucket_name))               #    USE the End of Run Separator = EndOfRun     = "\u00B7"
+      bucket.update(bucket_name => [record])      #create new bucket
     else
-      bucket.update(bucket_name => [record])      #next bucket
+      bucket[bucket_name].push(record)            #add to current bucket
     end
 
   end                                                   # END of Record Filters Logic  ############################
@@ -403,17 +403,11 @@ NOTES:
       stats[:errors][:total]            += 1
       # Each Error Class
       stats[:getsshfailserr][:total]  += !(bucket_ra[1].join.match(stats[:getsshfailserr][:err_regex]).nil?)  ? 1 : 0
-      
       stats[:findiperr][:total]       += !(bucket_ra[1].join.match(stats[:findiperr][:err_regex]).nil?)       ? 1 : 0
-        
       stats[:testerr][:total]         += !(bucket_ra[1].join.match(stats[:testerr][:err_regex]).nil?)         ? 1 : 0
-      
       stats[:curlerr][:total]         += !(bucket_ra[1].join.match(stats[:curlerr][:err_regex]).nil?)         ? 1 : 0
-
       stats[:parsessherr][:total]     += !(bucket_ra[1].join.match(stats[:parsessherr][:err_regex]).nil?)     ? 1 : 0
-
       stats[:nodependerr][:total]     += !(bucket_ra[1].join.match(stats[:nodependerr][:err_regex]).nil?)     ? 1 : 0
-      
       stats[:argverr][:total]         += !(bucket_ra[1].join.match(stats[:argverr][:err_regex]).nil?)         ? 1 : 0
     end
 
