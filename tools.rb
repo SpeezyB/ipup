@@ -3,21 +3,21 @@
 
 # Define Error Classes
 #class DisconError < StandardError; end   # Is this used?
-class PingFailError < StandardError; end
-class GetSshFailsError < StandardError; end
-class FindIpError < StandardError; end
-class TestError < StandardError; end
-class CurlError < StandardError; end
-class ParseSshError < StandardError; end
-class NoDependFileError < StandardError; end
-class ArgvError < StandardError; end
+class PingFailError < StandardError;      end
+class GetSshFailsError < StandardError;   end
+class FindIpError < StandardError;        end
+class TestError < StandardError;          end
+class CurlError < StandardError;          end
+class ParseSshError < StandardError;      end
+class NoDependFileError < StandardError;  end
+class ArgvError < StandardError;          end
 
 # ----------------------
 def display_help(opt)
   pad = 0
   opt.each_key{|key|
-    pad = key.size > pad ? key.size : pad
-  }
+    pad = key.size > pad ? key.size : pad }
+
   m0      =  12   #   \
   m1      =  11   #     > These are the below margins
   m2      =  4    #   /
@@ -93,7 +93,7 @@ def file_check(filelist)
     if v.split(' ')[0].split('.').size > 1
       files << v.split(' ')[0]
     else
-      cmds << v.split(' ')[0]
+      cmds  << v.split(' ')[0]
     end
   end
 
@@ -366,11 +366,12 @@ NOTES:
   end # filling up the records from the file
   stats[:records].delete_if{|i| i == "" || i.nil?}
   stats[:records].compact!
-  stats[:records].uniq!
+  #stats[:records].uniq!
 
   bucket = {}
-  stats[:records].each do |record|      # START of Record Filters Logic ############################
-
+  stats[:records].each_with_index do |record, idx|      # START of Record Filters Logic ############################
+    ap idx
+    
     stats[:dates][:data]              += record.scan(stats[:dates][:datetime_regex])
     binding.pry if $opts[:pry] == 'rec'
     stats[:ips_logged][:data]         += record.scan(stats[:ips_logged][:ip_regex])
@@ -380,13 +381,23 @@ NOTES:
                                           stats[:runs][:pid_data].last ].flatten
     bucket_name                       = tmp_strs.join('#').to_sym
 
-    if !(bucket.has_key?(bucket_name))               #    USE the End of Run Separator = EndOfRun     = "\u00B7"
-      bucket.update(bucket_name => [record])      #create new bucket
+    binding.pry if $opts[:pry] == 'bucky'
+    if idx != 0 #|| !(stats[:records][idx - 1].end_with?(EndOfRun))
+      if !(stats[:records][idx - 1].end_with?(EndOfRun)) 
+        bucket[bucket_name].push(record)          # Add to Current bucket
+      end
     else
-      bucket[bucket_name].push(record)            #add to current bucket
+      bucket.update(bucket_name => [record])      # Create New bucket
     end
+=begin
+    if bucket.has_key?(bucket_name)               # USE the End of Run Separator = EndOfRun     = "\u00B7"
 
-  end                                                   # END of Record Filters Logic  ############################
+      bucket[bucket_name].push(record)            # add to current bucket
+    else 
+      bucket.update(bucket_name => [record])      # create new bucket
+    end
+=end
+  end                                             # END of Record Filters Logic  ############################
 
   stats[:records]                   .clear if $opts[:test] == 'clear'
 
