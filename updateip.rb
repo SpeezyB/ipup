@@ -643,14 +643,6 @@ begin # Begin Main Program main
     end
   end
 
-  $Log.debug('[main]'.ljust(LogPad)) {"Curl DATA : #{curl.inspect}#{EOR}"}
-  $Log.debug('[main]'.ljust(LogPad)) {"Curl lines DATA : #{curl.lines.ai(:plain => true).to_s}#{EOR}"}
-  if $opts[:log] == false
-    $Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EndOfRun}#{EOR}"}
-  else
-    $Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EOR}"}
-  end
- 
   result = %Q(
 Current IP: #{$ip[:v4]}
 Result of Update: #{contents}
@@ -659,7 +651,15 @@ Result of Update: #{contents}
 
   result << curl if $opts[:showall]
 
+  $Log.debug('[main]'.ljust(LogPad)) {"Curl DATA : #{curl.inspect}#{EOR}"}
+  $Log.debug('[main]'.ljust(LogPad)) {"Curl lines DATA : #{curl.lines.ai(:plain => true).to_s}#{EOR}"}
   $Log.debug('[main]'.ljust(LogPad)) {"Result Data : #{result.lines.ai(plain: true).to_s}#{EOR}"}
+
+  if $opts[:log] == false
+    $Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EndOfRun}#{EOR}"}
+  else
+    $Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EOR}"}
+  end
 
 # run_error_tests($opts[:test]) if %w(DisconError PingFailError GetSshFailsError FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError).include?($opts[:test])
 
