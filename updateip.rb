@@ -35,6 +35,9 @@
 * [ ] add benchmarking and if it's too slow run speedtest and start recording inet speeds
   [x] do a lookup of $ARGV and only continue if all $ARGV's are valid else just display help 
   [x] during backup tar all the older logs together
+  [ ] add support for duckdns
+        curl "https://www.duckdns.org/update?domains=greenpickle.duckdns.org,greenpickles.duckdns.org,werf.duckdns.org&token=32d027c4-b7e3-4c16-b80a-2d2735a69ad7&ip=$currentIP&verbose=true"
+
 =end
 BEGIN{
   require 'logger'
@@ -43,7 +46,7 @@ BEGIN{
   require 'yaml'
   require 'date'
   require 'pry'             # External needs to be installed
-  require 'resolv'          # Standard Library 
+  #require 'resolv'          # Standard Library 
 
   v           = '2'
   wd          = File.absolute_path($0).split('/')[0..-2].join('/') + '/'''
@@ -56,11 +59,13 @@ BEGIN{
   
   EOR         = "\u00B6"
   EndOfRun    = "\u00B7"
-  Bools       = %w(true false TRUE FALSE True False) + [true, false]
+  Redacted    = "\u00A4"
+  Bools       = ['true', 'false', 'TRUE', 'FALSE', 'True', 'False', TrueClass, FalseClass]
 # Ip_Regex    = Resolv::AddressRegex    # /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
   Ip_Regex    = /\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/
   Max_tries   = 1 # default = 3
   LogPad      = 25
+  IPWhitelist = File.join(File.dirname(__FILE__), 'ipwhitelist.yml')
 
   Prog_parts  = {
 #   file:       $0.split('/').last,
@@ -105,15 +110,16 @@ BEGIN{
     auth:       '/var/log/auth.log',
     secrets:    Depends_on[:secrets],
     log:        Logfile,
-    prog:       Progfile
+    prog:       Progfile,
+    ip_wlist:   IPWhitelist,
   }
 
   Sites         = {
     dynu:       'api.dynu.com',
     checkip:    {
-      dynu:       'checkip.dynu.com',
       ipinfo:     'ipinfo.io/ip',
-      ifconfigme: 'ifconfig.me/ip'
+      ifconfigme: 'ifconfig.me/ip',
+      dynu:       'checkip.dynu.com',
     },
     google:     '8.8.8.8'
   }
@@ -126,10 +132,17 @@ BEGIN{
     (start_ip..end_ip).map(&:to_s)
   end
 
-  begin
-    local_ips     = create_ip_rng('192.168.0.2', '192.168.0.225')
-    $IPWhitelist  = (local_ips << %w(0.0.0.0 216.191.105.146)).flatten!
-  end
+  _ip_list = Thread.new {
+    if File.exist?(Files[:ip_wlist])
+      $IPWhitelist = YAML.load Files[:ip_wlist]
+    else
+      local_ips     = create_ip_rng('192.168.0.2', '192.168.0.225')
+      $IPWhitelist  = (local_ips << %w(0.0.0.0 216.191.105.146)).flatten!
+      File.open(Files[:ip_wlist], 'w+') do |f|
+        f.write($IPWhitelist.to_yaml)
+      end
+    end
+  }
   
   Dir.chdir(Log_parts[:dir])
 
@@ -163,7 +176,7 @@ BEGIN{
     pwd:            '',
   }
 
-  if !(ARGV.empty?)
+ if !(ARGV.empty?)
     keys = []
     ARGV.each_with_index do |arg, idx|
       if arg.lstrip.start_with?('-')
@@ -284,6 +297,13 @@ BEGIN{
   when 'report'
     generate_report(Logfile, EOR)
     exit!(0)
+  when 'roll'
+    new_log_filename = "#{Logfile + time_stamper + '.backup'}"
+    puts File.rename(Logfile, Logfile + '.backup') ? "#{Logfile} has been renamed to #{new_log_filename}" : \
+      "ERROR! #{Logfile} was not renamed!"
+    $Log = Logger.new(Logfile, 'weekly')
+    $Log.datetime_format = '%Y-%m-%d %H:%M:%S'
+    $Log.level = Logger::INFO
   when true, 'view'
     exec_str = "#{Depends_on[:vim]} #{Logfile}"
     exec(exec_str)
@@ -312,6 +332,7 @@ BEGIN{
   end
 
   $opts[:pwd] = File.expand_path(File.dirname(__FILE__))
+  _ip_list.join
 } # End of Startup Biz
 
 def goodbye(code=0)
@@ -526,7 +547,7 @@ def get_users
     linedata = line.split(' ')
     user_ip = [linedata[0]]
      
-    user_ip[1] =  if linedata[1].include?('tty') || line.include?('(:0)')
+    user_ip[1] =  if linedata[1].include?('tty') || line.include?('(:0)') || line.include?('pi@true')
                     '0.0.0.0'
                   else
                     if !(line.to_s =~ Ip_Regex).nil?
@@ -534,7 +555,7 @@ def get_users
                     else
                       host = line.match(/\((.*?)\)/).to_s.delete('(').delete(')')
                       $Log.debug('[get_users-content.each]'.ljust(LogPad)) {"Hostname of Logged in user : #{host}#{EOR}"}
-                      Resolv.getaddress(host) # extract the hostname between two ()
+                      #Resolv.getaddress(host) # extract the hostname between two ()
                     end
                     #line.match(Ip_Regex).to_s
                   end
@@ -614,9 +635,15 @@ begin # Begin Main Program main
     goodbye(0)
   end
 
-  pay_load = "http://api.dynu.com/nic/update?hostname=#{Base64.decode64($creds[:host])}" <<
+#  pay_load = "http://api.dynu.com/nic/update?" << 
+#             "hostname=#{Base64.decode64($creds[:host])}" <<
+#             "&myip=#{$ip[:v4]}&myipv6=#{$ip[:v6]}" <<
+#             "&username=#{Base64.decode64($creds[:user])}" << 
+#             "&password=#{Base64.decode64($creds[:pass])}" 
+  pay_load = "http://api.dynu.com/nic/update?" << 
+             "&username=#{Base64.decode64($creds[:user])}" << 
              "&myip=#{$ip[:v4]}&myipv6=#{$ip[:v6]}" <<
-             "&username=#{Base64.decode64($creds[:user])}&password=#{Base64.decode64($creds[:pass])}" 
+             "&password=#{Base64.decode64($creds[:pass])}" 
 
   curl = api_call(pay_load)
 
@@ -643,14 +670,6 @@ begin # Begin Main Program main
     end
   end
 
-  $Log.debug('[main]'.ljust(LogPad)) {"Curl DATA : #{curl.inspect}#{EOR}"}
-  $Log.debug('[main]'.ljust(LogPad)) {"Curl lines DATA : #{curl.lines.ai(:plain => true).to_s}#{EOR}"}
-  if $opts[:log] == false
-    $Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EndOfRun}#{EOR}"}
-  else
-    $Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EOR}"}
-  end
- 
   result = %Q(
 Current IP: #{$ip[:v4]}
 Result of Update: #{contents}
@@ -659,7 +678,15 @@ Result of Update: #{contents}
 
   result << curl if $opts[:showall]
 
+  $Log.debug('[main]'.ljust(LogPad)) {"Curl DATA : #{curl.inspect}#{EOR}"}
+  $Log.debug('[main]'.ljust(LogPad)) {"Curl lines DATA : #{curl.lines.ai(:plain => true).to_s}#{EOR}"}
   $Log.debug('[main]'.ljust(LogPad)) {"Result Data : #{result.lines.ai(plain: true).to_s}#{EOR}"}
+
+  if $opts[:log] == false
+    $Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EndOfRun}#{EOR}"}
+  else
+    $Log.info('[main]'.ljust(LogPad)) {"IP : #{$ip[:v4].ljust(15)} // Contents : #{contents}#{EndOfRun}#{EOR}"}
+  end
 
 # run_error_tests($opts[:test]) if %w(DisconError PingFailError GetSshFailsError FindIpError TestError CurlError ParseSshError NoDependFileError ArgvError).include?($opts[:test])
 
