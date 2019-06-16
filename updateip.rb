@@ -136,7 +136,7 @@ BEGIN{
     if File.exist?(Files[:ip_wlist])
       $IPWhitelist = YAML.load Files[:ip_wlist]
     else
-      local_ips     = create_ip_rng('192.168.0.2', '192.168.0.225')
+      local_ips     = create_ip_rng('192.168.1.2', '192.168.1.225')
       $IPWhitelist  = (local_ips << %w(0.0.0.0 216.191.105.146)).flatten!
       File.open(Files[:ip_wlist], 'w+') do |f|
         f.write($IPWhitelist.to_yaml)
@@ -160,7 +160,9 @@ BEGIN{
     with_speed:     false,
     test:           false,    # Not Used ??
     log:            false,
-    timeck:         5,        # how many minutes back to check for ssh fails
+    logroll:        false,
+#    timeck:         5,        # how many minutes back to check for ssh fails
+    timeck:         60,
     timewindow:     30,       # 1 month in days to grab a pool of data for ssh fails
     retry_count:    0,
     tail:           false,
@@ -308,6 +310,15 @@ BEGIN{
     exec_str = "#{Depends_on[:vim]} #{Logfile}"
     exec(exec_str)
   else
+    $Log.level = Logger::INFO
+  end
+
+  if $opts[:logroll]
+    new_log_filename = "#{Logfile + time_stamper + '.backup'}"
+    puts File.rename(Logfile, Logfile + '.backup') ? "#{Logfile} has been renamed to #{new_log_filename}" : \
+      "ERROR! #{Logfile} was not renamed!"
+    $Log = Logger.new(Logfile, 'weekly')
+    $Log.datetime_format = '%Y-%m-%d %H:%M:%S'
     $Log.level = Logger::INFO
   end
 
@@ -539,8 +550,8 @@ def get_users
   result = []
   content = %x(#{Depends_on[:who]}).lines
   #current_total_users = content[0].match(/[\d{1,2}].user/).to_s.split(' ')[0]
-  current_total_users = %x(#{Depends_on[:users]}).lines[1].split('=').last.chomp
-  $Log.debug('[get_users]'.ljust(LogPad)) {"Current_total_users: #{current_total_users.ai(plain: true).to_s}#{EOR}"}
+  #current_total_users = %x(#{Depends_on[:users]}).lines[1].split('=').last.chomp
+  #$Log.debug('[get_users]'.ljust(LogPad)) {"Current_total_users: #{current_total_users.ai(plain: true).to_s}#{EOR}"}
   $Log.debug('[get_users]'.ljust(LogPad)) {"Get Users Info: #{content.ai(plain: true).to_s}#{EOR}"}
 
   content.each{|line|
@@ -563,6 +574,8 @@ def get_users
   } # End content.each
 
   result.map!{|e| e.join('@') }
+  result.delete_if{|e| e.to_s.include?('pi@true')}
+  current_total_users = result.size
   info = [current_total_users,' // Ip Addresses: ', result.join(', ')].join
   $Log.debug('[get_users]'.ljust(LogPad)) {"Return of get_users -> #{info.ai(plain: true).to_s}#{EOR}"}
   return info

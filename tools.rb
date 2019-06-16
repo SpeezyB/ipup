@@ -270,7 +270,7 @@ Totals For Current Log File: #{stats[:logfile]}
 def generate_report(read_log_file, sep="\u00B6", report_type='gen')
 # raise !File.exist?(read_log_file) ? "Unable to generate report from #{read_log_file}" : nil # <<<<<<<<< This needs work ?!?!?!?!?
   require 'awesome_print' if !defined?(awesome_print)
-  # require 'time' if !defined?(time)                             # <- Maybe needed to compare Times ?!?!?!
+  require 'time' if !defined?(time)                             # <- Maybe needed to compare Times ?!?!?!
   # require 'paint'                                               # Will this be needed?
 =begin  
 NOTES:
@@ -459,4 +459,8 @@ def run_error_tests(raise_err)
   when 'NoDependFileError'.upcase     then raise NoDependFileError, "Running Custom Class Error Test with #{raise_err} !"
   when 'ArgvError'.upcase             then raise ArgvError,         "Running Custom Class Error Test with #{raise_err} !"
   end
+end
+
+def time_stamper
+  Time.now.to_s[0..-7].gsub(/[\s|:]/, '_')
 end
